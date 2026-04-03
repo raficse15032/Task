@@ -1,7 +1,10 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\CommentController;
+use App\Http\Controllers\Api\V1\FeedController;
 use App\Http\Controllers\Api\V1\ImageController;
+use App\Http\Controllers\Api\V1\PostController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -39,6 +42,34 @@ Route::prefix('v1')->group(function () {
         Route::middleware('auth:api')->group(function () {
             Route::post('/', [ImageController::class, 'upload'])->name('api.v1.images.upload');
             Route::delete('/', [ImageController::class, 'destroy'])->name('api.v1.images.destroy');
+        });
+    });
+
+    // Feed & Post routes (all protected)
+    Route::middleware('auth:api')->group(function () {
+        // Feed
+        Route::get('feed', [FeedController::class, 'index'])->name('api.v1.feed.index');
+
+        // Posts
+        Route::prefix('posts')->group(function () {
+            Route::get('my', [PostController::class, 'myPosts'])->name('api.v1.posts.my');
+            Route::get('{post}', [PostController::class, 'show'])->name('api.v1.posts.show');
+            Route::post('/', [PostController::class, 'store'])->name('api.v1.posts.store');
+            Route::put('{post}', [PostController::class, 'update'])->name('api.v1.posts.update');
+            Route::delete('{post}', [PostController::class, 'destroy'])->name('api.v1.posts.destroy');
+            Route::post('{post}/like', [PostController::class, 'toggleLike'])->name('api.v1.posts.like');
+            Route::get('{post}/likers', [PostController::class, 'likers'])->name('api.v1.posts.likers');
+
+            // Comments on a post
+            Route::prefix('{post}/comments')->group(function () {
+                Route::get('/', [CommentController::class, 'index'])->name('api.v1.comments.index');
+                Route::post('/', [CommentController::class, 'store'])->name('api.v1.comments.store');
+                Route::put('{comment}', [CommentController::class, 'update'])->name('api.v1.comments.update');
+                Route::delete('{comment}', [CommentController::class, 'destroy'])->name('api.v1.comments.destroy');
+                Route::get('{comment}/replies', [CommentController::class, 'replies'])->name('api.v1.comments.replies');
+                Route::post('{comment}/like', [CommentController::class, 'toggleLike'])->name('api.v1.comments.like');
+                Route::get('{comment}/likers', [CommentController::class, 'likers'])->name('api.v1.comments.likers');
+            });
         });
     });
 });
