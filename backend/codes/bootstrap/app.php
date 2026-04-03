@@ -1,11 +1,12 @@
 <?php
 
-use Illuminate\Cache\RateLimiting\Limit;
+use App\Enums\HttpStatus;
+use App\Enums\ResponseMessage;
+use Illuminate\Auth\Middleware\Authenticate;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\RateLimiter;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -13,29 +14,6 @@ return Application::configure(basePath: dirname(__DIR__))
         api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
-        then: function () {
-            // Configure rate limiters from config
-            RateLimiter::for('auth', function (Request $request) {
-                $attempts = config('ratelimit.auth.attempts', 5);
-                $decay = config('ratelimit.auth.decay_minutes', 1);
-                
-                return Limit::perMinutes($decay, $attempts)->by($request->ip());
-            });
-            
-            RateLimiter::for('api', function (Request $request) {
-                $attempts = config('ratelimit.api.attempts', 60);
-                $decay = config('ratelimit.api.decay_minutes', 1);
-                
-                return Limit::perMinutes($decay, $attempts)->by($request->user()?->id ?: $request->ip());
-            });
-            
-            RateLimiter::for('global', function (Request $request) {
-                $attempts = config('ratelimit.global.attempts', 100);
-                $decay = config('ratelimit.global.decay_minutes', 1);
-                
-                return Limit::perMinutes($decay, $attempts)->by($request->user()?->id ?: $request->ip());
-            });
-        },
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->throttleApi();
@@ -47,7 +25,17 @@ return Application::configure(basePath: dirname(__DIR__))
             Request::HEADER_X_FORWARDED_PORT |
             Request::HEADER_X_FORWARDED_PROTO
         );
+
+        // Prevent redirect to login route for API requests
+        Authenticate::redirectUsing(function () {
+            return null;
+        });
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->render(function (\Illuminate\Auth\AuthenticationException $e, Request $request) {
+            return response()->json([
+                'success' => false,
+                'message' => ResponseMessage::UNAUTHORIZED->value,
+            ], HttpStatus::UNAUTHORIZED->value);
+        });
     })->create();

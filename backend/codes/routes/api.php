@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\ImageController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -29,6 +30,15 @@ Route::prefix('v1')->group(function () {
             Route::post('logout', [AuthController::class, 'logout'])->name('api.v1.auth.logout');
             Route::post('refresh', [AuthController::class, 'refresh'])->name('api.v1.auth.refresh');
             Route::get('me', [AuthController::class, 'me'])->name('api.v1.auth.me');
+        });
+    });
+
+    // Image routes
+    Route::prefix('images')->group(function () {
+        Route::get('/', [ImageController::class, 'show'])->name('api.v1.images.show');
+        Route::middleware('auth:api')->group(function () {
+            Route::post('/', [ImageController::class, 'upload'])->name('api.v1.images.upload');
+            Route::delete('/', [ImageController::class, 'destroy'])->name('api.v1.images.destroy');
         });
     });
 });

@@ -20,6 +20,12 @@ enum ResponseMessage: string
     case SERVER_ERROR = 'Internal server error';
     case TOO_MANY_REQUESTS = 'Too many attempts. Please try again later.';
     
+    // Image messages
+    case IMAGE_UPLOADED = 'Image uploaded successfully';
+    case IMAGE_FETCHED = 'Image URL retrieved successfully';
+    case IMAGE_DELETED = 'Image deleted successfully';
+    case IMAGE_UPLOAD_FAILED = 'Image upload failed';
+
     // Validation specific messages
     case EMAIL_TAKEN = 'The email has already been taken.';
     case INVALID_EMAIL_PASSWORD = 'The provided credentials are incorrect.';
