@@ -25,13 +25,13 @@ class CommentLikeService
         return $result;
     }
 
-    public function getLikers(int $commentId, int $perPage = 15): LengthAwarePaginator
+    public function getLikers(int $commentId, int $perPage = 15, ?string $type = null): LengthAwarePaginator
     {
         $page = request()->get('page', 1);
-        $cacheKey = "comment_likes:{$commentId}:likers:per_page:{$perPage}:page:{$page}";
+        $cacheKey = "comment_likes:{$commentId}:likers:type:{$type}:per_page:{$perPage}:page:{$page}";
 
-        return Cache::tags(['comment_likes', "comment_likes:{$commentId}"])->remember($cacheKey, now()->addMinutes(CacheTTL::LIST->value), function () use ($commentId, $perPage) {
-            return $this->commentLikeRepository->getLikersPaginated($commentId, $perPage);
+        return Cache::tags(['comment_likes', "comment_likes:{$commentId}"])->remember($cacheKey, now()->addMinutes(CacheTTL::LIST->value), function () use ($commentId, $perPage, $type) {
+            return $this->commentLikeRepository->getLikersPaginated($commentId, $perPage, $type);
         });
     }
 }

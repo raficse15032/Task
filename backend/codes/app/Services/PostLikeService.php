@@ -25,13 +25,13 @@ class PostLikeService
         return $result;
     }
 
-    public function getLikers(int $postId, int $perPage = 15): LengthAwarePaginator
+    public function getLikers(int $postId, int $perPage = 15, ?string $type = null): LengthAwarePaginator
     {
         $page = request()->get('page', 1);
-        $cacheKey = "post_likes:{$postId}:likers:per_page:{$perPage}:page:{$page}";
+        $cacheKey = "post_likes:{$postId}:likers:type:{$type}:per_page:{$perPage}:page:{$page}";
 
-        return Cache::tags(['post_likes', "post_likes:{$postId}"])->remember($cacheKey, now()->addMinutes(CacheTTL::LIST->value), function () use ($postId, $perPage) {
-            return $this->postLikeRepository->getLikersPaginated($postId, $perPage);
+        return Cache::tags(['post_likes', "post_likes:{$postId}"])->remember($cacheKey, now()->addMinutes(CacheTTL::LIST->value), function () use ($postId, $perPage, $type) {
+            return $this->postLikeRepository->getLikersPaginated($postId, $perPage, $type);
         });
     }
 }

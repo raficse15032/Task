@@ -1,6 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { logoutUser } from '../api/authService';
+import { toast } from 'react-toastify';
+import { logoutUser, getFeed, createPost, getPostComments, createComment, getCommentReplies, createReply, likePost } from '../api/authService';
+
+const STORAGE_BASE = 'http://37.60.248.4:8830/api/v1/images?path=';
+
+function timeAgo(dateString) {
+  const diff = Math.floor((Date.now() - new Date(dateString)) / 1000);
+  if (diff < 60) return `${diff} seconds ago`;
+  if (diff < 3600) return `${Math.floor(diff / 60)} minutes ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} hours ago`;
+  return `${Math.floor(diff / 86400)} days ago`;
+}
 
 function Navbar() {
   const [notifyOpen, setNotifyOpen] = useState(false);
@@ -290,19 +301,369 @@ function LeftSidebar() {
   );
 }
 
+function ReplyItem({ reply, postId, depth }) {
+  const [repliesOpen, setRepliesOpen] = useState(false);
+  const [replies, setReplies] = useState([]);
+  const repliesPageRef = useRef(0);
+  const repliesLoadingRef = useRef(false);
+  const [repliesHasMore, setRepliesHasMore] = useState(false);
+  const [repliesLoading, setRepliesLoading] = useState(false);
+  const [repliesCount, setRepliesCount] = useState(reply.replies_count);
+  const [replyFormOpen, setReplyFormOpen] = useState(false);
+  const [replyText, setReplyText] = useState('');
+  const [submittingReply, setSubmittingReply] = useState(false);
+
+  const fontSize = depth === 2 ? '13px' : '12px';
+  const metaSize = depth === 2 ? '12px' : '11px';
+
+  const loadReplies = async (page) => {
+    if (repliesLoadingRef.current) return;
+    repliesLoadingRef.current = true;
+    setRepliesLoading(true);
+    try {
+      const res = await getCommentReplies(postId, reply.id, page);
+      const { data: newReplies, last_page } = res.data.data;
+      setReplies(prev => page === 1 ? newReplies : [...prev, ...newReplies]);
+      setRepliesHasMore(page < last_page);
+      repliesPageRef.current = page;
+    } catch (_) {
+    } finally {
+      repliesLoadingRef.current = false;
+      setRepliesLoading(false);
+    }
+  };
+
+  const handleRepliesClick = () => {
+    if (!repliesOpen && repliesPageRef.current === 0) {
+      loadReplies(1);
+    }
+    setRepliesOpen(prev => !prev);
+  };
+
+  const handleReplySubmit = async (e) => {
+    e.preventDefault();
+    if (!replyText.trim()) return;
+    setSubmittingReply(true);
+    try {
+      const res = await createReply(postId, reply.id, replyText.trim());
+      const newReply = { ...res.data.data, likes_count: 0, dislikes_count: 0, replies_count: 0 };
+      setReplies(prev => [newReply, ...prev]);
+      setRepliesCount(prev => prev + 1);
+      setRepliesOpen(true);
+      setReplyText('');
+      setReplyFormOpen(false);
+    } catch (_) {
+    } finally {
+      setSubmittingReply(false);
+    }
+  };
+
+  return (
+    <div style={{ borderTop: '1px solid #f5f5f5', padding: '8px 0' }}>
+      <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+        <img src="/assets/images/comment_img.png" alt="" className="_comment_img" />
+        <div style={{ flex: 1 }}>
+          <p style={{ fontWeight: 600, fontSize: fontSize, margin: 0 }}>{reply.user.first_name} {reply.user.last_name}</p>
+          <p style={{ fontSize: fontSize, color: '#555', margin: '2px 0 4px' }}>{reply.content}</p>
+          <div style={{ display: 'flex', gap: '12px', fontSize: metaSize, color: '#aaa', flexWrap: 'wrap' }}>
+            <span>👍 {reply.likes_count}</span>
+            <span>👎 {reply.dislikes_count}</span>
+            {repliesCount > 0 ? (
+              <button
+                type="button"
+                onClick={handleRepliesClick}
+                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: metaSize, color: '#377DFF' }}
+              >
+                💬 {repliesCount} {repliesOpen ? 'Hide replies' : 'Replies'}
+              </button>
+            ) : (
+              <span>💬 0 Replies</span>
+            )}
+            <span>{timeAgo(reply.created_at)}</span>
+            {depth < 3 && (
+              <button
+                type="button"
+                onClick={() => setReplyFormOpen(prev => !prev)}
+                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: metaSize, color: '#377DFF' }}
+              >
+                {replyFormOpen ? 'Cancel' : 'Reply'}
+              </button>
+            )}
+          </div>
+          {depth < 3 && replyFormOpen && (
+            <form onSubmit={handleReplySubmit} style={{ marginTop: '8px', display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+              <textarea
+                className="form-control _comment_textarea"
+                placeholder="Write a reply..."
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleReplySubmit(e); } }}
+                disabled={submittingReply}
+                style={{ fontSize: '12px', minHeight: '34px', resize: 'none' }}
+              />
+              <button
+                type="submit"
+                disabled={submittingReply || !replyText.trim()}
+                style={{ background: '#377DFF', border: 'none', borderRadius: '6px', padding: '5px 12px', fontSize: '12px', color: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}
+              >
+                {submittingReply ? '...' : 'Send'}
+              </button>
+            </form>
+          )}
+          {repliesOpen && (
+            <div style={{ marginTop: '6px', marginLeft: '24px' }}>
+              {repliesLoading && replies.length === 0 && (
+                <div style={{ padding: '4px 0' }}>
+                  <div className="spinner-border spinner-border-sm text-primary" role="status">
+                    <span className="visually-hidden">Loading...</span>
+                  </div>
+                </div>
+              )}
+              {replies.map(subReply => (
+                <ReplyItem key={subReply.id} reply={subReply} postId={postId} depth={depth + 1} />
+              ))}
+              {!repliesLoading && replies.length === 0 && (
+                <p style={{ color: '#aaa', fontSize: '11px', margin: 0 }}>No replies yet.</p>
+              )}
+              {repliesHasMore && (
+                <div style={{ padding: '4px 0' }}>
+                  <button
+                    type="button"
+                    onClick={() => loadReplies(repliesPageRef.current + 1)}
+                    disabled={repliesLoading}
+                    style={{ background: 'none', border: '1px solid #ddd', borderRadius: '6px', padding: '3px 10px', fontSize: '11px', cursor: 'pointer', color: '#377DFF' }}
+                  >
+                    {repliesLoading ? 'Loading...' : 'Load more replies'}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CommentItem({ comment, postId }) {
+  const [repliesOpen, setRepliesOpen] = useState(false);
+  const [replies, setReplies] = useState([]);
+  const repliesPageRef = useRef(0);
+  const repliesLoadingRef = useRef(false);
+  const [repliesHasMore, setRepliesHasMore] = useState(false);
+  const [repliesLoading, setRepliesLoading] = useState(false);
+  const [repliesCount, setRepliesCount] = useState(comment.replies_count);
+  const [replyFormOpen, setReplyFormOpen] = useState(false);
+  const [replyText, setReplyText] = useState('');
+  const [submittingReply, setSubmittingReply] = useState(false);
+
+  const loadReplies = async (page) => {
+    if (repliesLoadingRef.current) return;
+    repliesLoadingRef.current = true;
+    setRepliesLoading(true);
+    try {
+      const res = await getCommentReplies(postId, comment.id, page);
+      const { data: newReplies, last_page } = res.data.data;
+      setReplies(prev => page === 1 ? newReplies : [...prev, ...newReplies]);
+      setRepliesHasMore(page < last_page);
+      repliesPageRef.current = page;
+    } catch (_) {
+    } finally {
+      repliesLoadingRef.current = false;
+      setRepliesLoading(false);
+    }
+  };
+
+  const handleRepliesClick = () => {
+    if (!repliesOpen && repliesPageRef.current === 0) {
+      loadReplies(1);
+    }
+    setRepliesOpen(prev => !prev);
+  };
+
+  const handleReplySubmit = async (e) => {
+    e.preventDefault();
+    if (!replyText.trim()) return;
+    setSubmittingReply(true);
+    try {
+      const res = await createReply(postId, comment.id, replyText.trim());
+      const newReply = { ...res.data.data, likes_count: 0, dislikes_count: 0, replies_count: 0 };
+      setReplies(prev => [newReply, ...prev]);
+      setRepliesCount(prev => prev + 1);
+      setRepliesOpen(true);
+      setReplyText('');
+      setReplyFormOpen(false);
+    } catch (_) {
+    } finally {
+      setSubmittingReply(false);
+    }
+  };
+
+  return (
+    <div style={{ borderTop: '1px solid #f0f0f0', padding: '10px 0' }}>
+      <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+        <img src="/assets/images/comment_img.png" alt="" className="_comment_img" />
+        <div style={{ flex: 1 }}>
+          <p style={{ fontWeight: 600, fontSize: '14px', margin: 0 }}>{comment.user.first_name} {comment.user.last_name}</p>
+          <p style={{ fontSize: '13px', color: '#555', margin: '2px 0 6px' }}>{comment.content}</p>
+          <div style={{ display: 'flex', gap: '16px', fontSize: '12px', color: '#888', flexWrap: 'wrap' }}>
+            <span>👍 {comment.likes_count}</span>
+            <span>👎 {comment.dislikes_count}</span>
+            {repliesCount > 0 ? (
+              <button
+                type="button"
+                onClick={handleRepliesClick}
+                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: '12px', color: '#377DFF' }}
+              >
+                💬 {repliesCount} {repliesOpen ? 'Hide replies' : 'Replies'}
+              </button>
+            ) : (
+              <span>💬 0 Replies</span>
+            )}
+            <span>{timeAgo(comment.created_at)}</span>
+            <button
+              type="button"
+              onClick={() => setReplyFormOpen(prev => !prev)}
+              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: '12px', color: '#377DFF' }}
+            >
+              {replyFormOpen ? 'Cancel' : 'Reply'}
+            </button>
+          </div>
+          {replyFormOpen && (
+            <form onSubmit={handleReplySubmit} style={{ marginTop: '8px', display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+              <textarea
+                className="form-control _comment_textarea"
+                placeholder="Write a reply..."
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleReplySubmit(e); } }}
+                disabled={submittingReply}
+                style={{ fontSize: '13px', minHeight: '36px', resize: 'none' }}
+              />
+              <button
+                type="submit"
+                disabled={submittingReply || !replyText.trim()}
+                style={{ background: '#377DFF', border: 'none', borderRadius: '6px', padding: '6px 14px', fontSize: '13px', color: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}
+              >
+                {submittingReply ? '...' : 'Send'}
+              </button>
+            </form>
+          )}
+          {repliesOpen && (
+            <div style={{ marginTop: '8px', marginLeft: '32px' }}>
+              {repliesLoading && replies.length === 0 && (
+                <div style={{ padding: '6px 0' }}>
+                  <div className="spinner-border spinner-border-sm text-primary" role="status">
+                    <span className="visually-hidden">Loading...</span>
+                  </div>
+                </div>
+              )}
+              {replies.map(reply => (
+                <ReplyItem key={reply.id} reply={reply} postId={postId} depth={2} />
+              ))}
+              {!repliesLoading && replies.length === 0 && (
+                <p style={{ color: '#aaa', fontSize: '12px', margin: 0 }}>No replies yet.</p>
+              )}
+              {repliesHasMore && (
+                <div style={{ padding: '6px 0' }}>
+                  <button
+                    type="button"
+                    onClick={() => loadReplies(repliesPageRef.current + 1)}
+                    disabled={repliesLoading}
+                    style={{ background: 'none', border: '1px solid #ddd', borderRadius: '6px', padding: '4px 12px', fontSize: '12px', cursor: 'pointer', color: '#377DFF' }}
+                  >
+                    {repliesLoading ? 'Loading...' : 'Load more replies'}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PostCard({ post }) {
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [comments, setComments] = useState([]);
+  const commentsPageRef = useRef(0);
+  const commentsLoadingRef = useRef(false);
+  const [commentsHasMore, setCommentsHasMore] = useState(false);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentText, setCommentText] = useState('');
+  const [submittingComment, setSubmittingComment] = useState(false);
+  const [commentCount, setCommentCount] = useState(post.comments_count);
+  const [likesCount, setLikesCount] = useState(post.likes_count);
+  const [dislikesCount, setDislikesCount] = useState(post.dislikes_count);
+  const [liking, setLiking] = useState(false);
+
+  const handleLike = async (type) => {
+    if (liking) return;
+    setLiking(true);
+    try {
+      const res = await likePost(post.id, type);
+      setLikesCount(res.data.data.likes_count);
+      setDislikesCount(res.data.data.dislikes_count);
+    } catch (_) {
+    } finally {
+      setLiking(false);
+    }
+  };
+
+  const handleCommentSubmit = async (e) => {
+    e.preventDefault();
+    if (!commentText.trim()) return;
+    setSubmittingComment(true);
+    try {
+      const res = await createComment(post.id, commentText.trim());
+      const newComment = { ...res.data.data, likes_count: 0, dislikes_count: 0, replies_count: 0 };
+      setComments(prev => [newComment, ...prev]);
+      setCommentText('');
+      setCommentCount(prev => prev + 1);
+      setCommentsOpen(true);
+    } catch (_) {
+    } finally {
+      setSubmittingComment(false);
+    }
+  };
+
+  const loadComments = async (page) => {
+    if (commentsLoadingRef.current) return;
+    commentsLoadingRef.current = true;
+    setCommentsLoading(true);
+    try {
+      const res = await getPostComments(post.id, page);
+      const { data: newComments, last_page } = res.data.data;
+      setComments(prev => page === 1 ? newComments : [...prev, ...newComments]);
+      setCommentsHasMore(page < last_page);
+      commentsPageRef.current = page;
+    } catch (_) {
+    } finally {
+      commentsLoadingRef.current = false;
+      setCommentsLoading(false);
+    }
+  };
+
+  const handleCommentCountClick = () => {
+    if (!commentsOpen && commentsPageRef.current === 0) {
+      loadComments(1);
+    }
+    setCommentsOpen(prev => !prev);
+  };
+
   return (
     <div className="_feed_inner_timeline_post_area _b_radious6 _padd_b24 _padd_t24 _mar_b16">
       <div className="_feed_inner_timeline_content _padd_r24 _padd_l24">
         <div className="_feed_inner_timeline_post_top">
           <div className="_feed_inner_timeline_post_box">
             <div className="_feed_inner_timeline_post_box_image">
-              <img src={post.avatar} alt="" className="_post_img" />
+              <img src="/assets/images/post_img.png" alt="" className="_post_img" />
             </div>
             <div className="_feed_inner_timeline_post_box_txt">
-              <h4 className="_feed_inner_timeline_post_box_title">{post.author}</h4>
+              <h4 className="_feed_inner_timeline_post_box_title">{post.user.first_name} {post.user.last_name}</h4>
               <p className="_feed_inner_timeline_post_box_para">
-                {post.time} . <Link to="#">Public</Link>
+                {timeAgo(post.created_at)} . <Link to="#">{post.visibility === 'public' ? 'Public' : 'Private'}</Link>
               </p>
             </div>
           </div>
@@ -318,100 +679,184 @@ function PostCard({ post }) {
             </div>
           </div>
         </div>
-        <h4 className="_feed_inner_timeline_post_title">{post.title}</h4>
-        {post.image && (
+        <p className="_feed_inner_timeline_post_title">{post.content}</p>
+        {post.image_path && (
           <div className="_feed_inner_timeline_image">
-            <img src={post.image} alt="Post" className="_time_img" />
+            <img src={`${STORAGE_BASE}/${post.image_path}`} alt="Post" className="_time_img" />
           </div>
         )}
       </div>
       <div className="_feed_inner_timeline_total_reacts _padd_r24 _padd_l24 _mar_b26">
-        <div className="_feed_inner_timeline_total_reacts_image">
-          <img src="/assets/images/react_img1.png" alt="" className="_react_img1" />
-          <img src="/assets/images/react_img2.png" alt="" className="_react_img" />
-          <img src="/assets/images/react_img3.png" alt="" className="_react_img _rect_img_mbl_none" />
-          <p className="_feed_inner_timeline_total_reacts_para">9+</p>
-        </div>
         <div className="_feed_inner_timeline_total_reacts_txt">
-          <p className="_feed_inner_timeline_total_reacts_para1">
-            <Link to="#"><span>12</span> Comment</Link>
-          </p>
-          <p className="_feed_inner_timeline_total_reacts_para2"><span>122</span> Share</p>
+          <button
+            type="button"
+            onClick={() => handleLike('like')}
+            disabled={liking}
+            className="_feed_inner_timeline_total_reacts_para1"
+            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 'inherit' }}
+          >
+            👍 <span>{likesCount}</span> Like
+          </button>
+          <button
+            type="button"
+            onClick={() => handleLike('dislike')}
+            disabled={liking}
+            className="_feed_inner_timeline_total_reacts_para2"
+            style={{ marginLeft: '20px', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 'inherit' }}
+          >
+            👎 <span>{dislikesCount}</span> Dislike
+          </button>
+          <button
+            type="button"
+            onClick={handleCommentCountClick}
+            style={{ marginLeft: '20px', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 'inherit', color: '#377DFF' }}
+          >
+            💬 <span>{commentCount}</span> Comment
+          </button>
         </div>
-      </div>
-      <div className="_feed_inner_timeline_reaction">
-        <button className="_feed_inner_timeline_reaction_emoji _feed_reaction _feed_reaction_active">
-          <span className="_feed_inner_timeline_reaction_link">
-            <span>
-              <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" fill="none" viewBox="0 0 19 19">
-                <path fill="#FFCC4D" d="M9.5 19a9.5 9.5 0 100-19 9.5 9.5 0 000 19z" />
-                <path fill="#664500" d="M9.5 11.083c-1.912 0-3.181-.222-4.75-.527-.358-.07-1.056 0-1.056 1.055 0 2.111 2.425 4.75 5.806 4.75 3.38 0 5.805-2.639 5.805-4.75 0-1.055-.697-1.125-1.055-1.055-1.57.305-2.838.527-4.75.527z" />
-                <path fill="#fff" d="M4.75 11.611s1.583.528 4.75.528 4.75-.528 4.75-.528-1.056 2.111-4.75 2.111-4.75-2.11-4.75-2.11z" />
-                <path fill="#664500" d="M6.333 8.972c.729 0 1.32-.827 1.32-1.847s-.591-1.847-1.32-1.847c-.729 0-1.32.827-1.32 1.847s.591 1.847 1.32 1.847zM12.667 8.972c.729 0 1.32-.827 1.32-1.847s-.591-1.847-1.32-1.847c-.729 0-1.32.827-1.32 1.847s.591 1.847 1.32 1.847z" />
-              </svg>
-              Haha
-            </span>
-          </span>
-        </button>
-        <button className="_feed_inner_timeline_reaction_comment _feed_reaction">
-          <span className="_feed_inner_timeline_reaction_link">
-            <span>
-              <svg className="_reaction_svg" xmlns="http://www.w3.org/2000/svg" width="21" height="21" fill="none" viewBox="0 0 21 21">
-                <path stroke="#000" d="M1 10.5c0-.464 0-.696.009-.893A9 9 0 019.607 1.01C9.804 1 10.036 1 10.5 1v0c.464 0 .696 0 .893.009a9 9 0 018.598 8.598c.009.197.009.429.009.893v6.046c0 1.36 0 2.041-.317 2.535a2 2 0 01-.602.602c-.494.317-1.174.317-2.535.317H10.5c-.464 0-.696 0-.893-.009a9 9 0 01-8.598-8.598C1 11.196 1 10.964 1 10.5v0z" />
-                <path stroke="#000" strokeLinecap="round" strokeLinejoin="round" d="M6.938 9.313h7.125M10.5 14.063h3.563" />
-              </svg>
-              Comment
-            </span>
-          </span>
-        </button>
-        <button className="_feed_inner_timeline_reaction_share _feed_reaction">
-          <span className="_feed_inner_timeline_reaction_link">
-            <span>
-              <svg className="_reaction_svg" xmlns="http://www.w3.org/2000/svg" width="24" height="21" fill="none" viewBox="0 0 24 21">
-                <path stroke="#000" strokeLinejoin="round" d="M23 10.5L12.917 1v5.429C3.267 6.429 1 13.258 1 20c2.785-3.52 5.248-5.429 11.917-5.429V20L23 10.5z" />
-              </svg>
-              Share
-            </span>
-          </span>
-        </button>
       </div>
       <div className="_feed_inner_timeline_cooment_area">
         <div className="_feed_inner_comment_box">
-          <form className="_feed_inner_comment_box_form">
+          <form className="_feed_inner_comment_box_form" onSubmit={handleCommentSubmit}>
             <div className="_feed_inner_comment_box_content">
               <div className="_feed_inner_comment_box_content_image">
                 <img src="/assets/images/comment_img.png" alt="" className="_comment_img" />
               </div>
               <div className="_feed_inner_comment_box_content_txt">
-                <textarea className="form-control _comment_textarea" placeholder="Write a comment" />
+                <textarea
+                  className="form-control _comment_textarea"
+                  placeholder="Write a comment"
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleCommentSubmit(e); } }}
+                  disabled={submittingComment}
+                />
               </div>
             </div>
           </form>
         </div>
+        {commentsOpen && (
+          <div style={{ marginTop: '8px' }}>
+            {commentsLoading && comments.length === 0 && (
+              <div style={{ textAlign: 'center', padding: '10px 0' }}>
+                <div className="spinner-border spinner-border-sm text-primary" role="status">
+                  <span className="visually-hidden">Loading...</span>
+                </div>
+              </div>
+            )}
+            {comments.map(comment => (
+              <CommentItem key={comment.id} comment={comment} postId={post.id} />
+            ))}
+            {!commentsLoading && comments.length === 0 && (
+              <p style={{ textAlign: 'center', color: '#aaa', fontSize: '13px', padding: '8px 0' }}>No comments yet.</p>
+            )}
+            {commentsHasMore && (
+              <div style={{ textAlign: 'center', padding: '8px 0' }}>
+                <button
+                  type="button"
+                  onClick={() => loadComments(commentsPageRef.current + 1)}
+                  disabled={commentsLoading}
+                  style={{ background: 'none', border: '1px solid #ddd', borderRadius: '6px', padding: '5px 16px', fontSize: '13px', cursor: 'pointer', color: '#377DFF' }}
+                >
+                  {commentsLoading ? 'Loading...' : 'Load more comments'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
 function MiddleContent() {
-  const posts = [
-    {
-      id: 1,
-      author: 'Karim Saif',
-      time: '5 minutes ago',
-      avatar: '/assets/images/post_img.png',
-      title: 'Healthy Tracking App',
-      image: '/assets/images/timeline_img.png',
-    },
-    {
-      id: 2,
-      author: 'Karim Saif',
-      time: '10 minutes ago',
-      avatar: '/assets/images/post_img.png',
-      title: 'New Design Trends 2026',
-      image: '/assets/images/timeline_img.png',
-    },
-  ];
+  const [posts, setPosts] = useState([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const loadingRef = useRef(false);
+  const sentinelRef = useRef(null);
+  const fileInputRef = useRef(null);
+
+  const [content, setContent] = useState('');
+  const [visibility, setVisibility] = useState('public');
+  const [image, setImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [posting, setPosting] = useState(false);
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setImage(file);
+    setImagePreview(URL.createObjectURL(file));
+  };
+
+  const handlePost = async () => {
+    if (!content.trim()) {
+      toast.error('Content is required.');
+      return;
+    }
+    setPosting(true);
+    try {
+      const fd = new FormData();
+      fd.append('content', content.trim());
+      fd.append('visibility', visibility);
+      if (image) fd.append('image', image);
+      const res = await createPost(fd);
+      const newPost = res.data.data;
+      setPosts(prev => [newPost, ...prev]);
+      setContent('');
+      setVisibility('public');
+      setImage(null);
+      setImagePreview(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      toast.success('Post created successfully!');
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to create post.');
+    } finally {
+      setPosting(false);
+    }
+  };
+
+  const loadPosts = async (pageNum) => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
+    setLoading(true);
+    try {
+      const res = await getFeed(pageNum);
+      const { data: newPosts, last_page } = res.data.data;
+      setPosts(prev => pageNum === 1 ? newPosts : [...prev, ...newPosts]);
+      setHasMore(pageNum < last_page);
+    } catch (_) {
+    } finally {
+      loadingRef.current = false;
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadPosts(1);
+  }, []);
+
+  useEffect(() => {
+    if (page === 1) return;
+    loadPosts(page);
+  }, [page]);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingRef.current) {
+          setPage(prev => prev + 1);
+        }
+      },
+      { threshold: 0.1 }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore]);
 
   return (
     <div className="_layout_middle_wrap">
@@ -463,25 +908,47 @@ function MiddleContent() {
             <div className="_feed_inner_text_area_box_image">
               <img src="/assets/images/txt_img.png" alt="" className="_txt_img" />
             </div>
-            <div className="form-floating _feed_inner_text_area_box_form">
-              <textarea className="form-control _textarea" placeholder="Write something ..." id="postTextarea" />
-              <label htmlFor="postTextarea">Write something ...</label>
+            <div className="_feed_inner_text_area_box_form">
+              <textarea
+                className="form-control _textarea"
+                placeholder="Write something ..."
+                id="postTextarea"
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+              />
             </div>
           </div>
+          {imagePreview && (
+            <div style={{ marginTop: '10px', position: 'relative', display: 'inline-block' }}>
+              <img src={imagePreview} alt="Preview" style={{ maxHeight: '180px', borderRadius: '8px', maxWidth: '100%' }} />
+              <button
+                type="button"
+                onClick={() => { setImage(null); setImagePreview(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+                style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(0,0,0,0.5)', color: '#fff', border: 'none', borderRadius: '50%', width: '22px', height: '22px', cursor: 'pointer', lineHeight: '22px', textAlign: 'center', fontSize: '14px' }}
+              >×</button>
+            </div>
+          )}
           <div className="_feed_inner_text_area_bottom">
-            <div className="_feed_inner_text_area_item">
-              {['Photo', 'Video', 'Event', 'Article'].map((type) => (
-                <div key={type} className={`_feed_inner_text_area_bottom_${type.toLowerCase()} _feed_common`}>
-                  <button type="button" className="_feed_inner_text_area_bottom_photo_link">{type}</button>
-                </div>
-              ))}
+            <div className="_feed_inner_text_area_item" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div className="_feed_inner_text_area_bottom_photo _feed_common">
+                <button type="button" className="_feed_inner_text_area_bottom_photo_link" onClick={() => fileInputRef.current?.click()}>Photo</button>
+                <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageChange} />
+              </div>
+              <select
+                value={visibility}
+                onChange={(e) => setVisibility(e.target.value)}
+                style={{ border: '1px solid #e0e0e0', borderRadius: '6px', padding: '4px 8px', fontSize: '13px', color: '#555', cursor: 'pointer' }}
+              >
+                <option value="public">Public</option>
+                <option value="private">Private</option>
+              </select>
             </div>
             <div className="_feed_inner_text_area_btn">
-              <button type="button" className="_feed_inner_text_area_btn_link">
+              <button type="button" className="_feed_inner_text_area_btn_link" onClick={handlePost} disabled={posting}>
                 <svg className="_mar_img" xmlns="http://www.w3.org/2000/svg" width="14" height="13" fill="none" viewBox="0 0 14 13">
                   <path fill="#fff" fillRule="evenodd" d="M6.37 7.879l2.438 3.955a.335.335 0 00.34.162c.068-.01.23-.05.289-.247l3.049-10.297a.348.348 0 00-.09-.35.341.341 0 00-.34-.088L1.75 4.03a.34.34 0 00-.247.289.343.343 0 00.16.347L5.666 7.17 9.2 3.597a.5.5 0 01.712.703L6.37 7.88zM9.097 13c-.464 0-.89-.236-1.14-.641L5.372 8.165l-4.237-2.65a1.336 1.336 0 01-.622-1.331c.074-.536.441-.96.957-1.112L11.774.054a1.347 1.347 0 011.67 1.682l-3.05 10.296A1.332 1.332 0 019.098 13z" clipRule="evenodd" />
                 </svg>
-                <span>Post</span>
+                <span>{posting ? 'Posting...' : 'Post'}</span>
               </button>
             </div>
           </div>
@@ -489,6 +956,19 @@ function MiddleContent() {
 
         {/* Feed posts */}
         {posts.map((post) => <PostCard key={post.id} post={post} />)}
+
+        {/* Infinite scroll sentinel */}
+        <div ref={sentinelRef} style={{ height: 1 }} />
+        {loading && (
+          <div style={{ textAlign: 'center', padding: '16px 0' }}>
+            <div className="spinner-border spinner-border-sm text-primary" role="status">
+              <span className="visually-hidden">Loading...</span>
+            </div>
+          </div>
+        )}
+        {!hasMore && posts.length > 0 && (
+          <p style={{ textAlign: 'center', color: '#999', padding: '16px 0', fontSize: '14px' }}>No more posts</p>
+        )}
       </div>
     </div>
   );

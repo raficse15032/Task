@@ -32,11 +32,15 @@ class CommentLikeRepository implements CommentLikeRepositoryInterface
         ];
     }
 
-    public function getLikersPaginated(int $commentId, int $perPage = 15): LengthAwarePaginator
+    public function getLikersPaginated(int $commentId, int $perPage = 15, ?string $type = null): LengthAwarePaginator
     {
-        return CommentLike::with('user:id,first_name,last_name')
-            ->where('comment_id', $commentId)
-            ->orderByDesc('created_at')
-            ->paginate($perPage);
+        $query = CommentLike::with('user:id,first_name,last_name')
+            ->where('comment_id', $commentId);
+
+        if ($type !== null) {
+            $query->where('type', $type);
+        }
+
+        return $query->orderByDesc('created_at')->paginate($perPage);
     }
 }

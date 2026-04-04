@@ -702,7 +702,7 @@ curl -X POST http://localhost:8830/api/v1/posts/1/like \
 ---
 
 ### 16. Get Post Likers
-Get a list of users who liked a post.
+Get a paginated list of users who reacted to a post, optionally filtered by reaction type.
 
 **Endpoint:** `GET /api/v1/posts/{post}/likers`
 
@@ -711,17 +711,63 @@ Get a list of users who liked a post.
 Authorization: Bearer {access_token}
 ```
 
+**Query Parameters:**
+
+| Parameter | Type   | Required | Description |
+|-----------|--------|----------|-------------|
+| `type`    | string | No       | Filter by reaction type: `like` or `dislike`. Omit to get all reactions. |
+| `page`    | int    | No       | Page number (default: 1) |
+
 **Success Response (200):**
 ```json
 {
     "success": true,
-    "message": "Likers fetched successfully",
-    "data": [ ... ]
+    "message": "Likers retrieved successfully",
+    "data": {
+        "current_page": 1,
+        "data": [
+            {
+                "id": 1,
+                "post_id": 1,
+                "user_id": 2,
+                "type": "like",
+                "created_at": "2026-04-04T10:00:00.000000Z",
+                "updated_at": "2026-04-04T10:00:00.000000Z",
+                "user": {
+                    "id": 2,
+                    "first_name": "John",
+                    "last_name": "Doe"
+                }
+            }
+        ],
+        "last_page": 1,
+        "per_page": 15,
+        "total": 1
+    }
+}
+```
+
+**Error Response (422) — invalid type:**
+```json
+{
+    "success": false,
+    "message": "Invalid type. Must be like or dislike."
 }
 ```
 
 ```bash
+# All reactions
 curl -X GET http://localhost:8830/api/v1/posts/1/likers \
+  -H "Accept: application/json" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+
+# Only likers
+curl -X GET "http://localhost:8830/api/v1/posts/1/likers?type=like" \
+  -H "Accept: application/json" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+
+# Only dislikers
+curl -X GET "http://localhost:8830/api/v1/posts/1/likers?type=dislike" \
   -H "Accept: application/json" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
@@ -938,7 +984,7 @@ curl -X POST http://localhost:8830/api/v1/posts/1/comments/5/like \
 ---
 
 ### 23. Get Comment Likers
-Get a list of users who liked a comment.
+Get a paginated list of users who reacted to a comment, optionally filtered by reaction type.
 
 **Endpoint:** `GET /api/v1/posts/{post}/comments/{comment}/likers`
 
@@ -947,8 +993,63 @@ Get a list of users who liked a comment.
 Authorization: Bearer {access_token}
 ```
 
+**Query Parameters:**
+
+| Parameter | Type   | Required | Description |
+|-----------|--------|----------|-------------|
+| `type`    | string | No       | Filter by reaction type: `like` or `dislike`. Omit to get all reactions. |
+| `page`    | int    | No       | Page number (default: 1) |
+
+**Success Response (200):**
+```json
+{
+    "success": true,
+    "message": "Likers retrieved successfully",
+    "data": {
+        "current_page": 1,
+        "data": [
+            {
+                "id": 1,
+                "comment_id": 5,
+                "user_id": 2,
+                "type": "like",
+                "created_at": "2026-04-04T10:00:00.000000Z",
+                "updated_at": "2026-04-04T10:00:00.000000Z",
+                "user": {
+                    "id": 2,
+                    "first_name": "John",
+                    "last_name": "Doe"
+                }
+            }
+        ],
+        "last_page": 1,
+        "per_page": 15,
+        "total": 1
+    }
+}
+```
+
+**Error Response (422) — invalid type:**
+```json
+{
+    "success": false,
+    "message": "Invalid type. Must be like or dislike."
+}
+```
+
 ```bash
+# All reactions
 curl -X GET http://localhost:8830/api/v1/posts/1/comments/5/likers \
+  -H "Accept: application/json" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+
+# Only likers
+curl -X GET "http://localhost:8830/api/v1/posts/1/comments/5/likers?type=like" \
+  -H "Accept: application/json" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+
+# Only dislikers
+curl -X GET "http://localhost:8830/api/v1/posts/1/comments/5/likers?type=dislike" \
   -H "Accept: application/json" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```

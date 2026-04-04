@@ -217,7 +217,15 @@ class PostController extends Controller
             ], HttpStatus::NOT_FOUND->value);
         }
 
-        $likers = $this->postLikeService->getLikers($id);
+        $type = request()->query('type');
+        if ($type !== null && !in_array($type, ['like', 'dislike'], true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid type. Must be like or dislike.',
+            ], HttpStatus::UNPROCESSABLE_ENTITY->value);
+        }
+
+        $likers = $this->postLikeService->getLikers($id, 15, $type ?: null);
 
         return response()->json([
             'success' => true,

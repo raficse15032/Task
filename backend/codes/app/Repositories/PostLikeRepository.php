@@ -32,11 +32,15 @@ class PostLikeRepository implements PostLikeRepositoryInterface
         ];
     }
 
-    public function getLikersPaginated(int $postId, int $perPage = 15): LengthAwarePaginator
+    public function getLikersPaginated(int $postId, int $perPage = 15, ?string $type = null): LengthAwarePaginator
     {
-        return PostLike::with('user:id,first_name,last_name')
-            ->where('post_id', $postId)
-            ->orderByDesc('created_at')
-            ->paginate($perPage);
+        $query = PostLike::with('user:id,first_name,last_name')
+            ->where('post_id', $postId);
+
+        if ($type !== null) {
+            $query->where('type', $type);
+        }
+
+        return $query->orderByDesc('created_at')->paginate($perPage);
     }
 }
