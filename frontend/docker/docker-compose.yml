@@ -1,0 +1,20 @@
+name: appifylab-frontend
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: ./docker/Dockerfile
+    image: appifylab-frontend-image
+    container_name: appifylab-frontend-container
+    restart: no
+    volumes:
+      - ../codes:/var/www/html
+    ports:
+      - "5170:5173"
+    networks:
+      - default
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+networks:
+  default:
+    driver: bridge

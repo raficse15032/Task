@@ -6,7 +6,7 @@ import Modal from '../components/Modal';
 import Navbar from '../components/Navbar';
 import Avatar from '../components/Avatar';
 
-const STORAGE_BASE = 'http://37.60.248.4:8830/api/v1/images?path=';
+const STORAGE_BASE = import.meta.env.VITE_STORAGE_BASE;
 
 function timeAgo(dateString) {
   const diff = Math.floor((Date.now() - new Date(dateString)) / 1000);
