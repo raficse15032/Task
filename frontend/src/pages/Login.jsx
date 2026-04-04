@@ -1,6 +1,58 @@
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
+import { loginUser } from '../api/authService';
+
+function validate(form) {
+  const errors = {};
+  if (!form.email.trim()) {
+    errors.email = 'Email is required.';
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+    errors.email = 'Enter a valid email address.';
+  }
+  if (!form.password) {
+    errors.password = 'Password is required.';
+  } 
+  return errors;
+}
 
 export default function Login() {
+  const navigate = useNavigate();
+  const [form, setForm] = useState({ email: '', password: '' });
+  const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+    setErrors((prev) => ({ ...prev, [name]: '' }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const validationErrors = validate(form);
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      return;
+    }
+    setLoading(true);
+    try {
+      const response = await loginUser({ email: form.email, password: form.password });
+      if (response.data?.success) {
+        const { access_token, user } = response.data.data;
+        localStorage.setItem('token', access_token);
+        localStorage.setItem('user', JSON.stringify(user));
+        toast.success(response.data.message || 'Login successful!');
+        navigate('/feed');
+      }
+    } catch (error) {
+      const message = error.response?.data?.message || 'Login failed. Please try again.';
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <section className="_social_login_wrapper _layout_main_wrapper">
       <div className="_shape_one">
@@ -39,18 +91,32 @@ export default function Login() {
                 <div className="_social_login_content_bottom_txt _mar_b40">
                   <span>Or</span>
                 </div>
-                <form className="_social_login_form">
+                <form className="_social_login_form" onSubmit={handleSubmit} noValidate>
                   <div className="row">
                     <div className="col-xl-12 col-lg-12 col-md-12 col-sm-12">
                       <div className="_social_login_form_input _mar_b14">
                         <label className="_social_login_label _mar_b8">Email</label>
-                        <input type="email" className="form-control _social_login_input" />
+                        <input
+                          type="email"
+                          name="email"
+                          value={form.email}
+                          onChange={handleChange}
+                          className={`form-control _social_login_input${errors.email ? ' is-invalid' : ''}`}
+                        />
+                        {errors.email && <div className="invalid-feedback">{errors.email}</div>}
                       </div>
                     </div>
                     <div className="col-xl-12 col-lg-12 col-md-12 col-sm-12">
                       <div className="_social_login_form_input _mar_b14">
                         <label className="_social_login_label _mar_b8">Password</label>
-                        <input type="password" className="form-control _social_login_input" />
+                        <input
+                          type="password"
+                          name="password"
+                          value={form.password}
+                          onChange={handleChange}
+                          className={`form-control _social_login_input${errors.password ? ' is-invalid' : ''}`}
+                        />
+                        {errors.password && <div className="invalid-feedback">{errors.password}</div>}
                       </div>
                     </div>
                   </div>
@@ -77,8 +143,13 @@ export default function Login() {
                   <div className="row">
                     <div className="col-lg-12 col-md-12 col-xl-12 col-sm-12">
                       <div className="_social_login_form_btn _mar_t40 _mar_b60">
-                        <button type="submit" className="_social_login_form_btn_link _btn1">
-                          Login now
+                        <button
+                          type="submit"
+                          className="_social_login_form_btn_link _btn1"
+                          style={{ width: '100%', textAlign: 'center', whiteSpace: 'nowrap' }}
+                          disabled={loading}
+                        >
+                          {loading ? 'Logging in...' : 'Login now'}
                         </button>
                       </div>
                     </div>
