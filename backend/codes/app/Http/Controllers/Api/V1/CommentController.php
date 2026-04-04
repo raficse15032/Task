@@ -29,7 +29,7 @@ class CommentController extends Controller
         $this->commentLikeService = $commentLikeService;
     }
 
-    public function index(int $postId): JsonResponse
+    public function index(Request $request, int $postId): JsonResponse
     {
         $post = $this->postService->getPost($postId);
 
@@ -48,7 +48,10 @@ class CommentController extends Controller
             ], HttpStatus::FORBIDDEN->value);
         }
 
-        $comments = $this->commentService->getPostComments($postId);
+        $page = (int) $request->query('page', 1);
+        $perPage = (int) $request->query('per_page', 15);
+
+        $comments = $this->commentService->getPostComments($postId, $perPage, $page);
 
         return response()->json([
             'success' => true,
@@ -249,7 +252,7 @@ class CommentController extends Controller
         ], HttpStatus::OK->value);
     }
 
-    public function replies(int $postId, int $commentId): JsonResponse
+    public function replies(Request $request, int $postId, int $commentId): JsonResponse
     {
         $comment = $this->commentService->getComment($commentId);
 
@@ -260,7 +263,10 @@ class CommentController extends Controller
             ], HttpStatus::NOT_FOUND->value);
         }
 
-        $replies = $this->commentService->getReplies($commentId);
+        $page = (int) $request->query('page', 1);
+        $perPage = (int) $request->query('per_page', 15);
+
+        $replies = $this->commentService->getReplies($commentId, $perPage, $page);
 
         return response()->json([
             'success' => true,
