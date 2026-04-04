@@ -926,7 +926,6 @@ function MiddleContent() {
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
   const loadingRef = useRef(false);
-  const sentinelRef = useRef(null);
   const fileInputRef = useRef(null);
 
   const [content, setContent] = useState('');
@@ -976,7 +975,11 @@ function MiddleContent() {
     try {
       const res = await getFeed(pageNum);
       const { data: newPosts, last_page } = res.data.data;
-      setPosts(prev => pageNum === 1 ? newPosts : [...prev, ...newPosts]);
+      setPosts(prev => {
+        if (pageNum === 1) return newPosts;
+        const existingIds = new Set(prev.map(p => p.id));
+        return [...prev, ...newPosts.filter(p => !existingIds.has(p.id))];
+      });
       setHasMore(pageNum < last_page);
     } catch (_) {
     } finally {
@@ -986,28 +989,34 @@ function MiddleContent() {
   };
 
   useEffect(() => {
-    loadPosts(1);
+    let cancelled = false;
+    loadingRef.current = false;
+    const run = async () => {
+      if (loadingRef.current) return;
+      loadingRef.current = true;
+      setLoading(true);
+      try {
+        const res = await getFeed(1);
+        if (cancelled) return;
+        const { data: newPosts, last_page } = res.data.data;
+        setPosts(newPosts);
+        setHasMore(1 < last_page);
+      } catch (_) {
+      } finally {
+        if (!cancelled) {
+          loadingRef.current = false;
+          setLoading(false);
+        }
+      }
+    };
+    run();
+    return () => { cancelled = true; loadingRef.current = false; };
   }, []);
 
   useEffect(() => {
     if (page === 1) return;
     loadPosts(page);
   }, [page]);
-
-  useEffect(() => {
-    const sentinel = sentinelRef.current;
-    if (!sentinel) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasMore && !loadingRef.current) {
-          setPage(prev => prev + 1);
-        }
-      },
-      { threshold: 0.1 }
-    );
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [hasMore]);
 
   return (
     <div className="_layout_middle_wrap">
@@ -1108,13 +1117,22 @@ function MiddleContent() {
         {/* Feed posts */}
         {posts.map((post) => <PostCard key={post.id} post={post} />)}
 
-        {/* Infinite scroll sentinel */}
-        <div ref={sentinelRef} style={{ height: 1 }} />
         {loading && (
           <div style={{ textAlign: 'center', padding: '16px 0' }}>
             <div className="spinner-border spinner-border-sm text-primary" role="status">
               <span className="visually-hidden">Loading...</span>
             </div>
+          </div>
+        )}
+        {hasMore && !loading && (
+          <div style={{ textAlign: 'center', padding: '16px 0' }}>
+            <button
+              type="button"
+              onClick={() => setPage(prev => prev + 1)}
+              style={{ background: '#377DFF', border: 'none', borderRadius: '8px', padding: '9px 28px', fontSize: '14px', color: '#fff', cursor: 'pointer' }}
+            >
+              Load More
+            </button>
           </div>
         )}
         {!hasMore && posts.length > 0 && (
