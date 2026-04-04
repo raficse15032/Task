@@ -1,7 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { logoutUser, getFeed, createPost, getPostComments, createComment, getCommentReplies, createReply, likePost } from '../api/authService';
+import { logoutUser, getFeed, createPost, updatePost, getPostComments, createComment, getCommentReplies, createReply, likePost, likeComment, getPostLikers, getCommentLikers } from '../api/authService';
+import Modal from '../components/Modal';
+import Navbar from '../components/Navbar';
+import Avatar from '../components/Avatar';
 
 const STORAGE_BASE = 'http://37.60.248.4:8830/api/v1/images?path=';
 
@@ -11,201 +14,6 @@ function timeAgo(dateString) {
   if (diff < 3600) return `${Math.floor(diff / 60)} minutes ago`;
   if (diff < 86400) return `${Math.floor(diff / 3600)} hours ago`;
   return `${Math.floor(diff / 86400)} days ago`;
-}
-
-function Navbar() {
-  const [notifyOpen, setNotifyOpen] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
-
-  const handleLogout = async () => {
-    try {
-      await logoutUser();
-    } catch (_) {
-    } finally {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
-    }
-  };
-
-  return (
-    <nav className="navbar navbar-expand-lg navbar-light _header_nav _padd_t10">
-      <div className="container _custom_container">
-        <div className="_logo_wrap">
-          <Link className="navbar-brand" to="/feed">
-            <img src="/assets/images/logo.svg" alt="Logo" className="_nav_logo" />
-          </Link>
-        </div>
-        <button
-          className="navbar-toggler bg-light"
-          type="button"
-          data-bs-toggle="collapse"
-          data-bs-target="#navbarSupportedContent"
-          aria-controls="navbarSupportedContent"
-          aria-expanded="false"
-          aria-label="Toggle navigation"
-        >
-          <span className="navbar-toggler-icon"></span>
-        </button>
-        <div className="collapse navbar-collapse" id="navbarSupportedContent">
-          <div className="_header_form ms-auto">
-            <form className="_header_form_grp">
-              <svg className="_header_form_svg" xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 17 17">
-                <circle cx="7" cy="7" r="6" stroke="#666" />
-                <path stroke="#666" strokeLinecap="round" d="M16 16l-3-3" />
-              </svg>
-              <input className="form-control me-2 _inpt1" type="search" placeholder="input search text" aria-label="Search" />
-            </form>
-          </div>
-          <ul className="navbar-nav mb-2 mb-lg-0 _header_nav_list ms-auto _mar_r8">
-            {/* Home */}
-            <li className="nav-item _header_nav_item">
-              <Link className="nav-link _header_nav_link_active _header_nav_link" to="/feed">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="21" fill="none" viewBox="0 0 18 21">
-                  <path className="_home_active" stroke="#000" strokeWidth="1.5" strokeOpacity=".6" d="M1 9.924c0-1.552 0-2.328.314-3.01.313-.682.902-1.187 2.08-2.196l1.143-.98C6.667 1.913 7.732 1 9 1c1.268 0 2.333.913 4.463 2.738l1.142.98c1.179 1.01 1.768 1.514 2.081 2.196.314.682.314 1.458.314 3.01v4.846c0 2.155 0 3.233-.67 3.902-.669.67-1.746.67-3.901.67H5.57c-2.155 0-3.232 0-3.902-.67C1 18.002 1 16.925 1 14.77V9.924z" />
-                  <path className="_home_active" stroke="#000" strokeOpacity=".6" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M11.857 19.341v-5.857a1 1 0 00-1-1H7.143a1 1 0 00-1 1v5.857" />
-                </svg>
-              </Link>
-            </li>
-            {/* Friends */}
-            <li className="nav-item _header_nav_item">
-              <Link className="nav-link _header_nav_link" to="#">
-                <svg xmlns="http://www.w3.org/2000/svg" width="26" height="20" fill="none" viewBox="0 0 26 20">
-                  <path fill="#000" fillOpacity=".6" fillRule="evenodd" d="M12.79 12.15h.429c2.268.015 7.45.243 7.45 3.732 0 3.466-5.002 3.692-7.415 3.707h-.894c-2.268-.015-7.452-.243-7.452-3.727 0-3.47 5.184-3.697 7.452-3.711l.297-.001h.132zm9.343-2.224c2.846.424 3.444 1.751 3.444 2.79 0 .636-.251 1.794-1.931 2.43a.882.882 0 01-1.137-.506.873.873 0 01.51-1.13c.796-.3.796-.633.796-.793 0-.511-.654-.868-1.944-1.06a.878.878 0 01-.741-.996.886.886 0 011.003-.735zM12.789 0c2.96 0 5.368 2.392 5.368 5.33 0 2.94-2.407 5.331-5.368 5.331h-.031a5.329 5.329 0 01-3.782-1.57 5.253 5.253 0 01-1.553-3.764C7.423 2.392 9.83 0 12.789 0z" clipRule="evenodd" />
-                </svg>
-              </Link>
-            </li>
-            {/* Notifications */}
-            <li className="nav-item _header_nav_item">
-              <span
-                id="_notify_btn"
-                className="nav-link _header_nav_link _header_notify_btn"
-                onClick={() => setNotifyOpen(!notifyOpen)}
-                style={{ cursor: 'pointer' }}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="22" fill="none" viewBox="0 0 20 22">
-                  <path fill="#000" fillOpacity=".6" fillRule="evenodd" d="M7.547 19.55c.533.59 1.218.915 1.93.915.714 0 1.403-.324 1.938-.916a.777.777 0 011.09-.056c.318.284.344.77.058 1.084-.832.917-1.927 1.423-3.086 1.423h-.002c-1.155-.001-2.248-.506-3.077-1.424a.762.762 0 01.057-1.083.774.774 0 011.092.057zM9.527 0c4.58 0 7.657 3.543 7.657 6.85 0 1.702.436 2.424.899 3.19.457.754.976 1.612.976 3.233-.36 4.14-4.713 4.478-9.531 4.478-4.818 0-9.172-.337-9.528-4.413-.003-1.686.515-2.544.973-3.299l.161-.27c.398-.679.737-1.417.737-2.918C1.871 3.543 4.948 0 9.528 0zm0 1.535c-3.6 0-6.11 2.802-6.11 5.316 0 2.127-.595 3.11-1.12 3.978-.422.697-.755 1.247-.755 2.444.173 1.93 1.455 2.944 7.986 2.944 6.494 0 7.817-1.06 7.988-3.01-.003-1.13-.336-1.681-.757-2.378-.526-.868-1.12-1.851-1.12-3.978 0-2.514-2.51-5.316-6.111-5.316z" clipRule="evenodd" />
-                </svg>
-                <span className="_counting">6</span>
-                <div id="_notify_drop" className={`_notification_dropdown${notifyOpen ? ' show' : ''}`}>
-                  <div className="_notifications_content">
-                    <h4 className="_notifications_content_title">Notifications</h4>
-                  </div>
-                  <div className="_notifications_drop_box">
-                    {[1, 2, 3].map((i) => (
-                      <div key={i} className="_notification_box">
-                        <div className="_notification_image">
-                          <img src="/assets/images/friend-req.png" alt="" className="_notify_img" />
-                        </div>
-                        <div className="_notification_txt">
-                          <p className="_notification_para">
-                            <span className="_notify_txt_link">Steve Jobs</span> posted a link in your timeline.
-                          </p>
-                          <div className="_nitification_time"><span>42 minutes ago</span></div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </span>
-            </li>
-            {/* Chat */}
-            <li className="nav-item _header_nav_item">
-              <Link className="nav-link _header_nav_link" to="#">
-                <svg xmlns="http://www.w3.org/2000/svg" width="23" height="22" fill="none" viewBox="0 0 23 22">
-                  <path fill="#000" fillOpacity=".6" fillRule="evenodd" d="M11.43 0c2.96 0 5.743 1.143 7.833 3.22 4.32 4.29 4.32 11.271 0 15.562C17.145 20.886 14.293 22 11.405 22c-1.575 0-3.16-.33-4.643-1.012-.437-.174-.847-.338-1.14-.338-.338.002-.793.158-1.232.308-.9.307-2.022.69-2.852-.131-.826-.822-.445-1.932-.138-2.826.152-.44.307-.895.307-1.239 0-.282-.137-.642-.347-1.161C-.57 11.46.322 6.47 3.596 3.22A11.04 11.04 0 0111.43 0zm4.068 8.867c.57 0 1.03.458 1.03 1.024 0 .566-.46 1.023-1.03 1.023a1.023 1.023 0 11-.01-2.047h.01zm-4.131 0c.568 0 1.03.458 1.03 1.024 0 .566-.462 1.023-1.03 1.023a1.03 1.03 0 01-1.035-1.024c0-.566.455-1.023 1.025-1.023h.01zm-4.132 0c.568 0 1.03.458 1.03 1.024 0 .566-.462 1.023-1.03 1.023a1.022 1.022 0 11-.01-2.047h.01z" clipRule="evenodd" />
-                </svg>
-                <span className="_counting">2</span>
-              </Link>
-            </li>
-          </ul>
-          {/* Profile Dropdown */}
-          <div className="_header_nav_profile">
-            <div className="_header_nav_profile_image">
-              <img src="/assets/images/profile.png" alt="Profile" className="_nav_profile_img" />
-            </div>
-            <div className="_header_nav_dropdown">
-              <p className="_header_nav_para">Dylan Field</p>
-              <button
-                className="_header_nav_dropdown_btn _dropdown_toggle"
-                type="button"
-                onClick={() => setProfileOpen(!profileOpen)}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="6" fill="none" viewBox="0 0 10 6">
-                  <path fill="#112032" d="M5 5l.354.354L5 5.707l-.354-.353L5 5zm4.354-3.646l-4 4-.708-.708 4-4 .708.708zm-4.708 4l-4-4 .708-.708 4 4-.708.708z" />
-                </svg>
-              </button>
-            </div>
-            <div className={`_nav_profile_dropdown _profile_dropdown${profileOpen ? ' show' : ''}`}>
-              <div className="_nav_profile_dropdown_info">
-                <div className="_nav_profile_dropdown_image">
-                  <img src="/assets/images/profile.png" alt="Profile" className="_nav_drop_img" />
-                </div>
-                <div className="_nav_profile_dropdown_info_txt">
-                  <h4 className="_nav_dropdown_title">Dylan Field</h4>
-                  <Link to="#" className="_nav_drop_profile">View Profile</Link>
-                </div>
-              </div>
-              <hr />
-              <ul className="_nav_dropdown_list">
-                <li className="_nav_dropdown_list_item">
-                  <Link to="#" className="_nav_dropdown_link">
-                    <div className="_nav_drop_info">
-                      <span>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="19" fill="none" viewBox="0 0 18 19">
-                          <path fill="#377DFF" d="M9.584 0c.671 0 1.315.267 1.783.74.468.473.721 1.112.7 1.709l.009.14a.985.985 0 00.136.395c.145.242.382.418.659.488.276.071.57.03.849-.13l.155-.078c1.165-.538 2.563-.11 3.21.991l.58.99a.695.695 0 01.04.081l.055.107c.519 1.089.15 2.385-.838 3.043l-.244.15a1.046 1.046 0 00-.313.339 1.042 1.042 0 00-.11.805c.074.272.255.504.53.66l.158.1c.478.328.823.812.973 1.367.17.626.08 1.292-.257 1.86l-.625 1.022-.094.144c-.735 1.038-2.16 1.355-3.248.738l-.129-.066a1.123 1.123 0 00-.412-.095 1.087 1.087 0 00-.766.31c-.204.2-.317.471-.316.786l-.008.163C11.956 18.022 10.88 19 9.584 19h-1.17c-1.373 0-2.486-1.093-2.484-2.398l-.008-.14a.994.994 0 00-.14-.401 1.066 1.066 0 00-.652-.493 1.12 1.12 0 00-.852.127l-.169.083a2.526 2.526 0 01-1.698.122 2.47 2.47 0 01-1.488-1.154l-.604-1.024-.08-.152a2.404 2.404 0 01.975-3.132l.1-.061c.292-.199.467-.527.467-.877 0-.381-.207-.733-.569-.94l-.147-.092a2.419 2.419 0 01-.724-3.236l.615-.993a2.503 2.503 0 013.366-.912l.126.066c.13.058.269.089.403.09a1.08 1.08 0 001.086-1.068l.008-.185c.049-.57.301-1.106.713-1.513A2.5 2.5 0 018.414 0h1.17zm-.58 6.395c-1.744 0-3.16 1.39-3.16 3.105s1.416 3.105 3.16 3.105c1.746 0 3.161-1.39 3.161-3.105s-1.415-3.105-3.16-3.105z"/>
-                        </svg>
-                      </span>
-                      Settings
-                    </div>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="6" height="10" fill="none" viewBox="0 0 6 10">
-                      <path fill="#112032" d="M5 5l.354.354L5.707 5l-.353-.354L5 5zM1.354 9.354l4-4-.708-.708-4 4 .708.708zm4-4.708l-4-4-.708.708 4 4 .708-.708z" opacity=".5"/>
-                    </svg>
-                  </Link>
-                </li>
-                <li className="_nav_dropdown_list_item">
-                  <Link to="#" className="_nav_dropdown_link">
-                    <div className="_nav_drop_info">
-                      <span>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 20 20">
-                          <path stroke="#377DFF" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M10 19a9 9 0 100-18 9 9 0 000 18z"/>
-                          <path stroke="#377DFF" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M7.38 7.3a2.7 2.7 0 015.248.9c0 1.8-2.7 2.7-2.7 2.7M10 14.5h.009"/>
-                        </svg>
-                      </span>
-                      Help &amp; Support
-                    </div>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="6" height="10" fill="none" viewBox="0 0 6 10">
-                      <path fill="#112032" d="M5 5l.354.354L5.707 5l-.353-.354L5 5zM1.354 9.354l4-4-.708-.708-4 4 .708.708zm4-4.708l-4-4-.708.708 4 4 .708-.708z" opacity=".5"/>
-                    </svg>
-                  </Link>
-                </li>
-                <li className="_nav_dropdown_list_item">
-                  <button
-                    type="button"
-                    className="_nav_dropdown_link"
-                    style={{ width: '100%', background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer' }}
-                    onClick={handleLogout}
-                  >
-                    <div className="_nav_drop_info">
-                      <span>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" fill="none" viewBox="0 0 19 19">
-                          <path stroke="#377DFF" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M6.667 18H2.889A1.889 1.889 0 011 16.111V2.89A1.889 1.889 0 012.889 1h3.778M13.277 14.222L18 9.5l-4.723-4.722M18 9.5H6.667"/>
-                        </svg>
-                      </span>
-                      Log Out
-                    </div>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="6" height="10" fill="none" viewBox="0 0 6 10">
-                      <path fill="#112032" d="M5 5l.354.354L5.707 5l-.353-.354L5 5zM1.354 9.354l4-4-.708-.708-4 4 .708.708zm4-4.708l-4-4-.708.708 4 4 .708-.708z" opacity=".5"/>
-                    </svg>
-                  </button>
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </div>
-    </nav>
-  );
 }
 
 function LeftSidebar() {
@@ -312,8 +120,49 @@ function ReplyItem({ reply, postId, depth }) {
   const [replyFormOpen, setReplyFormOpen] = useState(false);
   const [replyText, setReplyText] = useState('');
   const [submittingReply, setSubmittingReply] = useState(false);
+  const [likesCount, setLikesCount] = useState(reply.likes_count);
+  const [dislikesCount, setDislikesCount] = useState(reply.dislikes_count);
+  const [liking, setLiking] = useState(false);
+  const [likersModal, setLikersModal] = useState({ open: false, type: null });
+  const [likersList, setLikersList] = useState([]);
+  const [likersPage, setLikersPage] = useState(0);
+  const [likersHasMore, setLikersHasMore] = useState(false);
+  const [likersLoading, setLikersLoading] = useState(false);
 
-  const fontSize = depth === 2 ? '13px' : '12px';
+  const handleLike = async (type) => {
+    if (liking) return;
+    setLiking(true);
+    try {
+      const res = await likeComment(postId, reply.id, type);
+      setLikesCount(res.data.data.likes_count);
+      setDislikesCount(res.data.data.dislikes_count);
+    } catch (_) {
+    } finally {
+      setLiking(false);
+    }
+  };
+
+  const loadLikers = async (type, page) => {
+    setLikersLoading(true);
+    try {
+      const res = await getCommentLikers(postId, reply.id, type, page);
+      const { data: newUsers, last_page } = res.data.data;
+      setLikersList(prev => page === 1 ? newUsers : [...prev, ...newUsers]);
+      setLikersHasMore(page < last_page);
+      setLikersPage(page);
+    } catch (_) {
+    } finally {
+      setLikersLoading(false);
+    }
+  };
+
+  const openLikersModal = (type) => {
+    setLikersModal({ open: true, type });
+    setLikersList([]);
+    setLikersPage(0);
+    setLikersHasMore(false);
+    loadLikers(type, 1);
+  };
   const metaSize = depth === 2 ? '12px' : '11px';
 
   const loadReplies = async (page) => {
@@ -359,15 +208,26 @@ function ReplyItem({ reply, postId, depth }) {
   };
 
   return (
+    <>
     <div style={{ borderTop: '1px solid #f5f5f5', padding: '8px 0' }}>
       <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-        <img src="/assets/images/comment_img.png" alt="" className="_comment_img" />
+        <Avatar firstName={reply.user.first_name} lastName={reply.user.last_name} size={24} className="_comment_img" />
         <div style={{ flex: 1 }}>
           <p style={{ fontWeight: 600, fontSize: fontSize, margin: 0 }}>{reply.user.first_name} {reply.user.last_name}</p>
           <p style={{ fontSize: fontSize, color: '#555', margin: '2px 0 4px' }}>{reply.content}</p>
           <div style={{ display: 'flex', gap: '12px', fontSize: metaSize, color: '#aaa', flexWrap: 'wrap' }}>
-            <span>👍 {reply.likes_count}</span>
-            <span>👎 {reply.dislikes_count}</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+              <button type="button" onClick={() => handleLike('like')} disabled={liking}
+                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: metaSize, color: '#aaa' }}>👍</button>
+              <button type="button" onClick={() => openLikersModal('like')}
+                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: metaSize, color: '#aaa' }}>{likesCount} Like</button>
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+              <button type="button" onClick={() => handleLike('dislike')} disabled={liking}
+                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: metaSize, color: '#aaa' }}>👎</button>
+              <button type="button" onClick={() => openLikersModal('dislike')}
+                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: metaSize, color: '#aaa' }}>{dislikesCount} Dislike</button>
+            </span>
             {repliesCount > 0 ? (
               <button
                 type="button"
@@ -442,6 +302,37 @@ function ReplyItem({ reply, postId, depth }) {
         </div>
       </div>
     </div>
+      <Modal
+        isOpen={likersModal.open}
+        onClose={() => setLikersModal({ open: false, type: null })}
+        title={likersModal.type === 'like' ? '👍 Liked by' : '👎 Disliked by'}
+      >
+        {likersLoading && likersList.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '20px 0' }}>
+            <div className="spinner-border spinner-border-sm text-primary" role="status"><span className="visually-hidden">Loading...</span></div>
+          </div>
+        ) : likersList.length === 0 ? (
+          <p style={{ textAlign: 'center', color: '#aaa', fontSize: '14px', margin: '20px 0' }}>No one yet.</p>
+        ) : (
+          <>
+            {likersList.map(item => (
+              <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: '1px solid #f5f5f5' }}>
+                <Avatar firstName={item.user.first_name} lastName={item.user.last_name} size={30} />
+                <span style={{ fontSize: '14px', fontWeight: 500 }}>{item.user.first_name} {item.user.last_name}</span>
+              </div>
+            ))}
+            {likersHasMore && (
+              <div style={{ textAlign: 'center', paddingTop: '12px' }}>
+                <button type="button" onClick={() => loadLikers(likersModal.type, likersPage + 1)} disabled={likersLoading}
+                  style={{ background: 'none', border: '1px solid #ddd', borderRadius: '6px', padding: '6px 18px', fontSize: '13px', cursor: 'pointer', color: '#377DFF' }}>
+                  {likersLoading ? 'Loading...' : 'Load more'}
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </Modal>
+    </>
   );
 }
 
@@ -456,6 +347,49 @@ function CommentItem({ comment, postId }) {
   const [replyFormOpen, setReplyFormOpen] = useState(false);
   const [replyText, setReplyText] = useState('');
   const [submittingReply, setSubmittingReply] = useState(false);
+  const [likesCount, setLikesCount] = useState(comment.likes_count);
+  const [dislikesCount, setDislikesCount] = useState(comment.dislikes_count);
+  const [liking, setLiking] = useState(false);
+  const [likersModal, setLikersModal] = useState({ open: false, type: null });
+  const [likersList, setLikersList] = useState([]);
+  const [likersPage, setLikersPage] = useState(0);
+  const [likersHasMore, setLikersHasMore] = useState(false);
+  const [likersLoading, setLikersLoading] = useState(false);
+
+  const handleLike = async (type) => {
+    if (liking) return;
+    setLiking(true);
+    try {
+      const res = await likeComment(postId, comment.id, type);
+      setLikesCount(res.data.data.likes_count);
+      setDislikesCount(res.data.data.dislikes_count);
+    } catch (_) {
+    } finally {
+      setLiking(false);
+    }
+  };
+
+  const loadLikers = async (type, page) => {
+    setLikersLoading(true);
+    try {
+      const res = await getCommentLikers(postId, comment.id, type, page);
+      const { data: newUsers, last_page } = res.data.data;
+      setLikersList(prev => page === 1 ? newUsers : [...prev, ...newUsers]);
+      setLikersHasMore(page < last_page);
+      setLikersPage(page);
+    } catch (_) {
+    } finally {
+      setLikersLoading(false);
+    }
+  };
+
+  const openLikersModal = (type) => {
+    setLikersModal({ open: true, type });
+    setLikersList([]);
+    setLikersPage(0);
+    setLikersHasMore(false);
+    loadLikers(type, 1);
+  };
 
   const loadReplies = async (page) => {
     if (repliesLoadingRef.current) return;
@@ -500,15 +434,26 @@ function CommentItem({ comment, postId }) {
   };
 
   return (
+    <>
     <div style={{ borderTop: '1px solid #f0f0f0', padding: '10px 0' }}>
       <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-        <img src="/assets/images/comment_img.png" alt="" className="_comment_img" />
+        <Avatar firstName={comment.user.first_name} lastName={comment.user.last_name} size={24} className="_comment_img" />
         <div style={{ flex: 1 }}>
           <p style={{ fontWeight: 600, fontSize: '14px', margin: 0 }}>{comment.user.first_name} {comment.user.last_name}</p>
           <p style={{ fontSize: '13px', color: '#555', margin: '2px 0 6px' }}>{comment.content}</p>
           <div style={{ display: 'flex', gap: '16px', fontSize: '12px', color: '#888', flexWrap: 'wrap' }}>
-            <span>👍 {comment.likes_count}</span>
-            <span>👎 {comment.dislikes_count}</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+              <button type="button" onClick={() => handleLike('like')} disabled={liking}
+                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: '12px', color: '#888' }}>👍</button>
+              <button type="button" onClick={() => openLikersModal('like')}
+                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: '12px', color: '#888' }}>{likesCount} Like</button>
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+              <button type="button" onClick={() => handleLike('dislike')} disabled={liking}
+                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: '12px', color: '#888' }}>👎</button>
+              <button type="button" onClick={() => openLikersModal('dislike')}
+                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: '12px', color: '#888' }}>{dislikesCount} Dislike</button>
+            </span>
             {repliesCount > 0 ? (
               <button
                 type="button"
@@ -581,10 +526,54 @@ function CommentItem({ comment, postId }) {
         </div>
       </div>
     </div>
+      <Modal
+        isOpen={likersModal.open}
+        onClose={() => setLikersModal({ open: false, type: null })}
+        title={likersModal.type === 'like' ? '👍 Liked by' : '👎 Disliked by'}
+      >
+        {likersLoading && likersList.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '20px 0' }}>
+            <div className="spinner-border spinner-border-sm text-primary" role="status"><span className="visually-hidden">Loading...</span></div>
+          </div>
+        ) : likersList.length === 0 ? (
+          <p style={{ textAlign: 'center', color: '#aaa', fontSize: '14px', margin: '20px 0' }}>No one yet.</p>
+        ) : (
+          <>
+            {likersList.map(item => (
+              <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: '1px solid #f5f5f5' }}>
+                <Avatar firstName={item.user.first_name} lastName={item.user.last_name} size={36} />
+                <span style={{ fontSize: '14px', fontWeight: 500 }}>{item.user.first_name} {item.user.last_name}</span>
+              </div>
+            ))}
+            {likersHasMore && (
+              <div style={{ textAlign: 'center', paddingTop: '12px' }}>
+                <button type="button" onClick={() => loadLikers(likersModal.type, likersPage + 1)} disabled={likersLoading}
+                  style={{ background: 'none', border: '1px solid #ddd', borderRadius: '6px', padding: '6px 18px', fontSize: '13px', cursor: 'pointer', color: '#377DFF' }}>
+                  {likersLoading ? 'Loading...' : 'Load more'}
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </Modal>
+    </>
   );
 }
 
 function PostCard({ post }) {
+  const loggedUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const isOwn = loggedUser.id && post.user_id === loggedUser.id;
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editContent, setEditContent] = useState(post.content);
+  const [editVisibility, setEditVisibility] = useState(post.visibility);
+  const [editImage, setEditImage] = useState(null);
+  const [editImagePreview, setEditImagePreview] = useState(null);
+  const [updating, setUpdating] = useState(false);
+  const editFileInputRef = useRef(null);
+  const [postContent, setPostContent] = useState(post.content);
+  const [postVisibility, setPostVisibility] = useState(post.visibility);
+  const [postImagePath, setPostImagePath] = useState(post.image_path);
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [comments, setComments] = useState([]);
   const commentsPageRef = useRef(0);
@@ -597,6 +586,11 @@ function PostCard({ post }) {
   const [likesCount, setLikesCount] = useState(post.likes_count);
   const [dislikesCount, setDislikesCount] = useState(post.dislikes_count);
   const [liking, setLiking] = useState(false);
+  const [likersModal, setLikersModal] = useState({ open: false, type: null });
+  const [likersList, setLikersList] = useState([]);
+  const [likersPage, setLikersPage] = useState(0);
+  const [likersHasMore, setLikersHasMore] = useState(false);
+  const [likersLoading, setLikersLoading] = useState(false);
 
   const handleLike = async (type) => {
     if (liking) return;
@@ -608,6 +602,55 @@ function PostCard({ post }) {
     } catch (_) {
     } finally {
       setLiking(false);
+    }
+  };
+
+  const loadLikers = async (type, page) => {
+    setLikersLoading(true);
+    try {
+      const res = await getPostLikers(post.id, type, page);
+      const { data: newUsers, last_page } = res.data.data;
+      setLikersList(prev => page === 1 ? newUsers : [...prev, ...newUsers]);
+      setLikersHasMore(page < last_page);
+      setLikersPage(page);
+    } catch (_) {
+    } finally {
+      setLikersLoading(false);
+    }
+  };
+
+  const openLikersModal = (type) => {
+    setLikersModal({ open: true, type });
+    setLikersList([]);
+    setLikersPage(0);
+    setLikersHasMore(false);
+    loadLikers(type, 1);
+  };
+
+  const closeLikersModal = () => setLikersModal({ open: false, type: null });
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    if (!editContent.trim()) return;
+    setUpdating(true);
+    try {
+      const fd = new FormData();
+      fd.append('content', editContent.trim());
+      fd.append('visibility', editVisibility);
+      if (editImage) fd.append('image', editImage);
+      const res = await updatePost(post.id, fd);
+      const updated = res.data.data;
+      setPostContent(updated.content);
+      setPostVisibility(updated.visibility);
+      setPostImagePath(updated.image_path);
+      setEditOpen(false);
+      setEditImage(null);
+      setEditImagePreview(null);
+      toast.success('Post updated successfully!');
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to update post.');
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -658,54 +701,118 @@ function PostCard({ post }) {
         <div className="_feed_inner_timeline_post_top">
           <div className="_feed_inner_timeline_post_box">
             <div className="_feed_inner_timeline_post_box_image">
-              <img src="/assets/images/post_img.png" alt="" className="_post_img" />
+              <Avatar firstName={post.user.first_name} lastName={post.user.last_name} size={44} className="_post_img" />
             </div>
             <div className="_feed_inner_timeline_post_box_txt">
               <h4 className="_feed_inner_timeline_post_box_title">{post.user.first_name} {post.user.last_name}</h4>
               <p className="_feed_inner_timeline_post_box_para">
-                {timeAgo(post.created_at)} . <Link to="#">{post.visibility === 'public' ? 'Public' : 'Private'}</Link>
+                {timeAgo(post.created_at)} . <Link to="#">{postVisibility === 'public' ? 'Public' : 'Private'}</Link>
               </p>
             </div>
           </div>
           <div className="_feed_inner_timeline_post_box_dropdown">
-            <div className="_feed_timeline_post_dropdown">
-              <button className="_feed_timeline_post_dropdown_link" type="button">
+            <div className="_feed_timeline_post_dropdown" style={{ position: 'relative' }}>
+              <button className="_feed_timeline_post_dropdown_link" type="button" onClick={() => setDropdownOpen(p => !p)}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="4" height="17" fill="none" viewBox="0 0 4 17">
                   <circle cx="2" cy="2" r="2" fill="#C4C4C4" />
                   <circle cx="2" cy="8" r="2" fill="#C4C4C4" />
                   <circle cx="2" cy="15" r="2" fill="#C4C4C4" />
                 </svg>
               </button>
+              {dropdownOpen && isOwn && (
+                <div style={{ position: 'absolute', right: 0, top: '100%', background: '#fff', border: '1px solid #eee', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', zIndex: 100, minWidth: '120px' }}>
+                  <button
+                    type="button"
+                    onClick={() => { setEditOpen(true); setDropdownOpen(false); setEditContent(postContent); setEditVisibility(postVisibility); }}
+                    style={{ display: 'block', width: '100%', background: 'none', border: 'none', padding: '10px 16px', textAlign: 'left', fontSize: '13px', cursor: 'pointer', color: '#333' }}
+                  >
+                    ✏️ Edit Post
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
-        <p className="_feed_inner_timeline_post_title">{post.content}</p>
-        {post.image_path && (
-          <div className="_feed_inner_timeline_image">
-            <img src={`${STORAGE_BASE}/${post.image_path}`} alt="Post" className="_time_img" />
-          </div>
+        {editOpen ? (
+          <form onSubmit={handleEditSubmit} style={{ margin: '12px 0' }}>
+            <textarea
+              className="form-control _textarea"
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              style={{ minHeight: '80px', marginBottom: '8px' }}
+            />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px', flexWrap: 'wrap' }}>
+              <select
+                value={editVisibility}
+                onChange={(e) => setEditVisibility(e.target.value)}
+                style={{ border: '1px solid #e0e0e0', borderRadius: '6px', padding: '4px 8px', fontSize: '13px', color: '#555', cursor: 'pointer' }}
+              >
+                <option value="public">Public</option>
+                <option value="private">Private</option>
+              </select>
+              <button type="button" onClick={() => editFileInputRef.current?.click()}
+                style={{ background: 'none', border: '1px solid #ddd', borderRadius: '6px', padding: '4px 10px', fontSize: '13px', cursor: 'pointer', color: '#555' }}>
+                📷 Change Image
+              </button>
+              <input ref={editFileInputRef} type="file" accept="image/*" style={{ display: 'none' }}
+                onChange={(e) => { const f = e.target.files[0]; if (!f) return; setEditImage(f); setEditImagePreview(URL.createObjectURL(f)); }} />
+            </div>
+            {editImagePreview ? (
+              <div style={{ marginBottom: '8px', position: 'relative', display: 'inline-block' }}>
+                <img src={editImagePreview} alt="Preview" style={{ maxHeight: '160px', borderRadius: '8px', maxWidth: '100%' }} />
+                <button type="button" onClick={() => { setEditImage(null); setEditImagePreview(null); if (editFileInputRef.current) editFileInputRef.current.value = ''; }}
+                  style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(0,0,0,0.5)', color: '#fff', border: 'none', borderRadius: '50%', width: '22px', height: '22px', cursor: 'pointer', fontSize: '14px', lineHeight: '22px', textAlign: 'center' }}>×</button>
+              </div>
+            ) : postImagePath ? (
+              <div style={{ marginBottom: '8px', position: 'relative', display: 'inline-block' }}>
+                <img src={`${STORAGE_BASE}/${postImagePath}`} alt="Current" style={{ maxHeight: '160px', borderRadius: '8px', maxWidth: '100%', opacity: 0.7 }} />
+                <p style={{ fontSize: '11px', color: '#999', margin: '2px 0 0' }}>Current image (upload new to replace)</p>
+              </div>
+            ) : null}
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button type="submit" disabled={updating || !editContent.trim()}
+                style={{ background: '#377DFF', border: 'none', borderRadius: '6px', padding: '6px 18px', fontSize: '13px', color: '#fff', cursor: 'pointer' }}>
+                {updating ? 'Saving...' : 'Save'}
+              </button>
+              <button type="button" onClick={() => { setEditOpen(false); setEditImage(null); setEditImagePreview(null); }}
+                style={{ background: 'none', border: '1px solid #ddd', borderRadius: '6px', padding: '6px 14px', fontSize: '13px', cursor: 'pointer', color: '#555' }}>
+                Cancel
+              </button>
+            </div>
+          </form>
+        ) : (
+          <>
+            <p className="_feed_inner_timeline_post_title">{postContent}</p>
+            {postImagePath && (
+              <div className="_feed_inner_timeline_image">
+                <img src={`${STORAGE_BASE}/${postImagePath}`} alt="Post" className="_time_img" />
+              </div>
+            )}
+          </>
         )}
       </div>
       <div className="_feed_inner_timeline_total_reacts _padd_r24 _padd_l24 _mar_b26">
         <div className="_feed_inner_timeline_total_reacts_txt">
-          <button
-            type="button"
-            onClick={() => handleLike('like')}
-            disabled={liking}
-            className="_feed_inner_timeline_total_reacts_para1"
-            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 'inherit' }}
-          >
-            👍 <span>{likesCount}</span> Like
-          </button>
-          <button
-            type="button"
-            onClick={() => handleLike('dislike')}
-            disabled={liking}
-            className="_feed_inner_timeline_total_reacts_para2"
-            style={{ marginLeft: '20px', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 'inherit' }}
-          >
-            👎 <span>{dislikesCount}</span> Dislike
-          </button>
+          <span className="_feed_inner_timeline_total_reacts_para1" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <button type="button" onClick={() => handleLike('like')} disabled={liking}
+              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 'inherit' }}>
+              👍
+            </button>
+            <button type="button" onClick={() => openLikersModal('like')}
+              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 'inherit', color: 'inherit' }}>
+              <span>{likesCount}</span> Like
+            </button>
+          </span>
+          <span className="_feed_inner_timeline_total_reacts_para2" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginLeft: '20px' }}>
+            <button type="button" onClick={() => handleLike('dislike')} disabled={liking}
+              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 'inherit' }}>
+              👎
+            </button>
+            <button type="button" onClick={() => openLikersModal('dislike')}
+              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 'inherit', color: 'inherit' }}>
+              <span>{dislikesCount}</span> Dislike
+            </button>
+          </span>
           <button
             type="button"
             onClick={handleCommentCountClick}
@@ -715,14 +822,50 @@ function PostCard({ post }) {
           </button>
         </div>
       </div>
+      <Modal
+        isOpen={likersModal.open}
+        onClose={closeLikersModal}
+        title={likersModal.type === 'like' ? '👍 People who liked this' : '👎 People who disliked this'}
+      >
+        {likersLoading && likersList.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '20px 0' }}>
+            <div className="spinner-border spinner-border-sm text-primary" role="status">
+              <span className="visually-hidden">Loading...</span>
+            </div>
+          </div>
+        ) : likersList.length === 0 ? (
+          <p style={{ textAlign: 'center', color: '#aaa', fontSize: '14px', margin: '20px 0' }}>No one yet.</p>
+        ) : (
+          <>
+            {likersList.map(item => (
+              <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: '1px solid #f5f5f5' }}>
+                <Avatar firstName={item.user.first_name} lastName={item.user.last_name} size={30} />
+                <span style={{ fontSize: '14px', fontWeight: 500 }}>{item.user.first_name} {item.user.last_name}</span>
+              </div>
+            ))}
+            {likersHasMore && (
+              <div style={{ textAlign: 'center', paddingTop: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => loadLikers(likersModal.type, likersPage + 1)}
+                  disabled={likersLoading}
+                  style={{ background: 'none', border: '1px solid #ddd', borderRadius: '6px', padding: '6px 18px', fontSize: '13px', cursor: 'pointer', color: '#377DFF' }}
+                >
+                  {likersLoading ? 'Loading...' : 'Load more'}
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </Modal>
       <div className="_feed_inner_timeline_cooment_area">
         <div className="_feed_inner_comment_box">
           <form className="_feed_inner_comment_box_form" onSubmit={handleCommentSubmit}>
             <div className="_feed_inner_comment_box_content">
               <div className="_feed_inner_comment_box_content_image">
-                <img src="/assets/images/comment_img.png" alt="" className="_comment_img" />
+                <Avatar firstName={loggedUser.first_name || ''} lastName={loggedUser.last_name || ''} size={24} className="_comment_img" />
               </div>
-              <div className="_feed_inner_comment_box_content_txt">
+              <div className="_feed_inner_comment_box_content_txt" style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
                 <textarea
                   className="form-control _comment_textarea"
                   placeholder="Write a comment"
@@ -730,7 +873,15 @@ function PostCard({ post }) {
                   onChange={(e) => setCommentText(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleCommentSubmit(e); } }}
                   disabled={submittingComment}
+                  style={{ flex: 1, resize: 'none' }}
                 />
+                <button
+                  type="submit"
+                  disabled={submittingComment || !commentText.trim()}
+                  style={{ marginBottom: '3px', background: '#377DFF', border: 'none', borderRadius: '6px', padding: '7px 16px', fontSize: '13px', color: '#fff', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
+                >
+                  {submittingComment ? 'Sending...' : 'Send'}
+                </button>
               </div>
             </div>
           </form>
@@ -906,7 +1057,7 @@ function MiddleContent() {
         <div className="_feed_inner_text_area _b_radious6 _padd_b24 _padd_t24 _padd_r24 _padd_l24 _mar_b16">
           <div className="_feed_inner_text_area_box">
             <div className="_feed_inner_text_area_box_image">
-              <img src="/assets/images/txt_img.png" alt="" className="_txt_img" />
+              {(() => { const u = JSON.parse(localStorage.getItem('user') || '{}'); return <Avatar firstName={u.first_name || ''} lastName={u.last_name || ''} size={40} className="_txt_img" />; })()}
             </div>
             <div className="_feed_inner_text_area_box_form">
               <textarea

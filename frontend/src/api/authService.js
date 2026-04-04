@@ -17,6 +17,11 @@ export const createPost = (formData) =>
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 
+export const updatePost = (postId, formData) =>
+  axiosInstance.put(`/posts/${postId}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+
 export const getPostComments = (postId, page = 1) =>
   axiosInstance.get(`/posts/${postId}/comments?page=${page}`);
 
@@ -31,3 +36,12 @@ export const createReply = (postId, commentId, content) =>
 
 export const likePost = (postId, type) =>
   axiosInstance.post(`/posts/${postId}/like`, { type });
+
+export const likeComment = (postId, commentId, type) =>
+  axiosInstance.post(`/posts/${postId}/comments/${commentId}/like`, { type });
+
+export const getPostLikers = (postId, type, page = 1) =>
+  axiosInstance.get(`/posts/${postId}/likers?type=${type}&page=${page}`);
+
+export const getCommentLikers = (postId, commentId, type, page = 1) =>
+  axiosInstance.get(`/posts/${postId}/comments/${commentId}/likers?type=${type}&page=${page}`);
