@@ -53,7 +53,6 @@ class PostController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'title' => 'required|string|max:255',
             'content' => 'required|string|max:5000',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
             'visibility' => 'nullable|in:public,private',
@@ -70,7 +69,7 @@ class PostController extends Controller
         try {
             $post = $this->postService->createPost(
                 Auth::guard('api')->id(),
-                $request->only('title', 'content', 'visibility'),
+                $request->only('content', 'visibility'),
                 $request->file('image')
             );
 
@@ -107,7 +106,6 @@ class PostController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'title' => 'sometimes|required|string|max:255',
             'content' => 'sometimes|required|string|max:5000',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
             'visibility' => 'nullable|in:public,private',
@@ -124,7 +122,7 @@ class PostController extends Controller
         try {
             $post = $this->postService->updatePost(
                 $post,
-                $request->only('title', 'content', 'visibility'),
+                $request->only('content', 'visibility'),
                 $request->file('image')
             );
 

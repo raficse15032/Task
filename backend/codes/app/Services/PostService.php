@@ -43,7 +43,6 @@ class PostService
     {
         $postData = [
             'user_id' => $userId,
-            'title' => $data['title'],
             'content' => $data['content'],
             'visibility' => $data['visibility'] ?? 'private',
         ];
@@ -62,10 +61,6 @@ class PostService
     public function updatePost(Post $post, array $data, ?UploadedFile $image = null): Post
     {
         $updateData = [];
-
-        if (isset($data['title'])) {
-            $updateData['title'] = $data['title'];
-        }
 
         if (isset($data['content'])) {
             $updateData['content'] = $data['content'];
