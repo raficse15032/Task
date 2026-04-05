@@ -45,3 +45,6 @@ export const getPostLikers = (postId, type, page = 1) =>
 
 export const getCommentLikers = (postId, commentId, type, page = 1) =>
   axiosInstance.get(`/posts/${postId}/comments/${commentId}/likers?type=${type}&page=${page}`);
+
+export const deletePost = (postId) =>
+  axiosInstance.delete(`/posts/${postId}`);

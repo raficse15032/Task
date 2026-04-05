@@ -23,33 +23,6 @@ class PostController extends Controller
         $this->postLikeService = $postLikeService;
     }
 
-    public function show(int $id): JsonResponse
-    {
-        $post = $this->postService->getPost($id);
-
-        if (!$post) {
-            return response()->json([
-                'success' => false,
-                'message' => ResponseMessage::NOT_FOUND->value,
-            ], HttpStatus::NOT_FOUND->value);
-        }
-
-        $userId = Auth::guard('api')->id();
-
-        if ($post->visibility === 'private' && $post->user_id !== $userId) {
-            return response()->json([
-                'success' => false,
-                'message' => ResponseMessage::FORBIDDEN->value,
-            ], HttpStatus::FORBIDDEN->value);
-        }
-
-        return response()->json([
-            'success' => true,
-            'message' => ResponseMessage::POST_FETCHED->value,
-            'data' => $post,
-        ], HttpStatus::OK->value);
-    }
-
     public function store(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
@@ -231,21 +204,6 @@ class PostController extends Controller
             'success' => true,
             'message' => ResponseMessage::LIKERS_FETCHED->value,
             'data' => $likers,
-        ], HttpStatus::OK->value);
-    }
-
-    public function myPosts(Request $request): JsonResponse
-    {
-        $userId = Auth::guard('api')->id();
-        $perPage = $request->integer('per_page', 15);
-        $page = $request->integer('page', 1);
-
-        $posts = $this->postService->getUserPosts($userId, $perPage, $page);
-
-        return response()->json([
-            'success' => true,
-            'message' => ResponseMessage::FEED_FETCHED->value,
-            'data' => $posts,
         ], HttpStatus::OK->value);
     }
 }

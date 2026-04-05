@@ -1,12 +1,21 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { logoutUser, getFeed, createPost, updatePost, getPostComments, createComment, getCommentReplies, createReply, likePost, likeComment, getPostLikers, getCommentLikers } from '../api/authService';
+import { logoutUser, getFeed, createPost, updatePost, deletePost, getPostComments, createComment, getCommentReplies, createReply, likePost, likeComment, getPostLikers, getCommentLikers } from '../api/authService';
 import Modal from '../components/Modal';
 import Navbar from '../components/Navbar';
 import Avatar from '../components/Avatar';
 
 const STORAGE_BASE = import.meta.env.VITE_STORAGE_BASE;
+
+function getApiError(err, fallback) {
+  const data = err?.response?.data;
+  if (data?.errors) {
+    const first = Object.values(data.errors).flat()[0];
+    if (first) return first;
+  }
+  return data?.message || fallback;
+}
 
 function timeAgo(dateString) {
   const diff = Math.floor((Date.now() - new Date(dateString)) / 1000);
@@ -560,10 +569,11 @@ function CommentItem({ comment, postId }) {
   );
 }
 
-function PostCard({ post }) {
+function PostCard({ post, onDelete }) {
   const loggedUser = JSON.parse(localStorage.getItem('user') || '{}');
   const isOwn = loggedUser.id && post.user_id === loggedUser.id;
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editContent, setEditContent] = useState(post.content);
   const [editVisibility, setEditVisibility] = useState(post.visibility);
@@ -648,7 +658,7 @@ function PostCard({ post }) {
       setEditImagePreview(null);
       toast.success('Post updated successfully!');
     } catch (err) {
-      toast.error(err?.response?.data?.message || 'Failed to update post.');
+      toast.error(getApiError(err, 'Failed to update post.'));
     } finally {
       setUpdating(false);
     }
@@ -726,7 +736,28 @@ function PostCard({ post }) {
                     onClick={() => { setEditOpen(true); setDropdownOpen(false); setEditContent(postContent); setEditVisibility(postVisibility); }}
                     style={{ display: 'block', width: '100%', background: 'none', border: 'none', padding: '10px 16px', textAlign: 'left', fontSize: '13px', cursor: 'pointer', color: '#333' }}
                   >
-                    ✏️ Edit Post
+                    ✏️ Edit
+                  </button>
+                  <button
+                    type="button"
+                    disabled={deleting}
+                    onClick={async () => {
+                      if (!window.confirm('Are you sure you want to delete this post?')) return;
+                      setDeleting(true);
+                      setDropdownOpen(false);
+                      try {
+                        await deletePost(post.id);
+                        toast.success('Post deleted successfully!');
+                        onDelete?.(post.id);
+                      } catch (err) {
+                        toast.error(getApiError(err, 'Failed to delete post.'));
+                      } finally {
+                        setDeleting(false);
+                      }
+                    }}
+                    style={{ display: 'block', width: '100%', background: 'none', border: 'none', padding: '10px 16px', textAlign: 'left', fontSize: '13px', cursor: 'pointer', color: '#e74c3c' }}
+                  >
+                    {deleting ? '⏳ Deleting...' : '🗑️ Delete'}
                   </button>
                 </div>
               )}
@@ -962,7 +993,7 @@ function MiddleContent() {
       if (fileInputRef.current) fileInputRef.current.value = '';
       toast.success('Post created successfully!');
     } catch (err) {
-      toast.error(err?.response?.data?.message || 'Failed to create post.');
+      toast.error(getApiError(err, 'Failed to create post.'));
     } finally {
       setPosting(false);
     }
@@ -1151,7 +1182,7 @@ function MiddleContent() {
         </div>
 
         {/* Feed posts */}
-        {posts.map((post) => <PostCard key={post.id} post={post} />)}
+        {posts.map((post) => <PostCard key={post.id} post={post} onDelete={(id) => setPosts(prev => prev.filter(p => p.id !== id))} />)}
 
         {loading && (
           <div style={{ textAlign: 'center', padding: '16px 0' }}>

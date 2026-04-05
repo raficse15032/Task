@@ -31,18 +31,12 @@ Route::prefix('v1')->group(function () {
         // Protected routes
         Route::middleware('auth:api')->group(function () {
             Route::post('logout', [AuthController::class, 'logout'])->name('api.v1.auth.logout');
-            Route::post('refresh', [AuthController::class, 'refresh'])->name('api.v1.auth.refresh');
-            Route::get('me', [AuthController::class, 'me'])->name('api.v1.auth.me');
         });
     });
 
     // Image routes
     Route::prefix('images')->group(function () {
         Route::get('/', [ImageController::class, 'show'])->name('api.v1.images.show');
-        Route::middleware('auth:api')->group(function () {
-            Route::post('/', [ImageController::class, 'upload'])->name('api.v1.images.upload');
-            Route::delete('/', [ImageController::class, 'destroy'])->name('api.v1.images.destroy');
-        });
     });
 
     // Feed & Post routes (all protected)
@@ -52,8 +46,6 @@ Route::prefix('v1')->group(function () {
 
         // Posts
         Route::prefix('posts')->group(function () {
-            Route::get('my', [PostController::class, 'myPosts'])->name('api.v1.posts.my');
-            Route::get('{post}', [PostController::class, 'show'])->name('api.v1.posts.show');
             Route::post('/', [PostController::class, 'store'])->name('api.v1.posts.store');
             Route::put('{post}', [PostController::class, 'update'])->name('api.v1.posts.update');
             Route::delete('{post}', [PostController::class, 'destroy'])->name('api.v1.posts.destroy');

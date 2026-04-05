@@ -136,46 +136,4 @@ class AuthController extends Controller
             'message' => ResponseMessage::LOGOUT_SUCCESS->value
         ], HttpStatus::OK->value);
     }
-
-    /**
-     * Refresh the JWT token.
-     *
-     * @return JsonResponse
-     */
-    public function refresh(): JsonResponse
-    {
-        $result = $this->authService->refresh();
-
-        return response()->json([
-            'success' => true,
-            'message' => ResponseMessage::TOKEN_REFRESHED->value,
-            'data' => [
-                'access_token' => $result['token'],
-                'token_type' => $result['token_type'],
-                'expires_in' => $result['expires_in'],
-            ]
-        ], HttpStatus::OK->value);
-    }
-
-    /**
-     * Get the authenticated user.
-     *
-     * @return JsonResponse
-     */
-    public function me(): JsonResponse
-    {
-        $user = $this->authService->me();
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'user' => [
-                    'id' => $user->id,
-                    'first_name' => $user->first_name,
-                    'last_name' => $user->last_name,
-                    'email' => $user->email,
-                ]
-            ]
-        ], HttpStatus::OK->value);
-    }
 }
