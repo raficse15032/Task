@@ -173,6 +173,7 @@ function ReplyItem({ reply, postId, depth }) {
     loadLikers(type, 1);
   };
   const metaSize = depth === 2 ? '12px' : '11px';
+  const fontSize = depth === 2 ? '13px' : '12px';
 
   const loadReplies = async (page) => {
     if (repliesLoadingRef.current) return;
@@ -592,9 +593,9 @@ function PostCard({ post, onDelete }) {
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
-  const [commentCount, setCommentCount] = useState(post.comments_count);
-  const [likesCount, setLikesCount] = useState(post.likes_count);
-  const [dislikesCount, setDislikesCount] = useState(post.dislikes_count);
+  const [commentCount, setCommentCount] = useState(post.comments_count ?? 0);
+  const [likesCount, setLikesCount] = useState(post.likes_count ?? 0);
+  const [dislikesCount, setDislikesCount] = useState(post.dislikes_count ?? 0);
   const [liking, setLiking] = useState(false);
   const [likersModal, setLikersModal] = useState({ open: false, type: null });
   const [likersList, setLikersList] = useState([]);
