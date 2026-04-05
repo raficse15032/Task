@@ -21,6 +21,46 @@ export default function Navbar() {
   };
 
   return (
+    <>
+    {/* Mobile Header */}
+    <div className="_header_mobile_menu">
+      <div className="_header_mobile_menu_top_inner">
+        <Link to="/feed">
+          <img src="/assets/images/logo.svg" alt="Logo" className="_nav_logo" />
+        </Link>
+        <div className="_header_mobile_menu_right">
+          <span className="_header_mobile_search">
+            <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 17 17">
+              <circle cx="7" cy="7" r="6" stroke="#666" />
+              <path stroke="#666" strokeLinecap="round" d="M16 16l-3-3" />
+            </svg>
+          </span>
+          <button
+            className="_header_mobile_btn_link"
+            type="button"
+            onClick={() => setProfileOpen(!profileOpen)}
+          >
+            <Avatar firstName={user.first_name || ''} lastName={user.last_name || ''} size={30} className="_nav_profile_img" />
+          </button>
+        </div>
+      </div>
+      {profileOpen && (
+        <div style={{ background: '#fff', borderTop: '1px solid #f0f0f0', padding: '12px 0' }}>
+          <div style={{ padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid #f5f5f5' }}>
+            <Avatar firstName={user.first_name || ''} lastName={user.last_name || ''} size={36} />
+            <span style={{ fontWeight: 600, fontSize: '14px' }}>{displayName}</span>
+          </div>
+          <button
+            type="button"
+            onClick={handleLogout}
+            style={{ width: '100%', background: 'none', border: 'none', textAlign: 'left', padding: '10px 16px', fontSize: '14px', cursor: 'pointer', color: '#333' }}
+          >
+            Log Out
+          </button>
+        </div>
+      )}
+    </div>
+    {/* Desktop Header */}
     <nav className="navbar navbar-expand-lg navbar-light _header_nav _padd_t10">
       <div className="container _custom_container">
         <div className="_logo_wrap">
@@ -197,5 +237,6 @@ export default function Navbar() {
         </div>
       </div>
     </nav>
+    </>
   );
 }
