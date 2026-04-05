@@ -1,7 +1,7 @@
-# Authentication API Documentation
+# API Documentation
 
 ## Overview
-This is a JWT-based authentication system with user registration and login functionality. The API follows RESTful conventions and uses API versioning (v1).
+This is a JWT-based social feed API with user authentication, posts, comments, reactions, and image serving. The API follows RESTful conventions and uses API versioning (v1).
 
 ## Base URL
 ```
@@ -95,35 +95,7 @@ Authenticate a user and get access token.
 
 ---
 
-### 3. Get Current User
-Get authenticated user's information.
-
-**Endpoint:** `GET /api/v1/auth/me`
-
-**Headers:**
-```
-Authorization: Bearer {access_token}
-```
-
-**Success Response (200):**
-```json
-{
-    "success": true,
-    "data": {
-        "user": {
-            "id": 1,
-            "first_name": "John",
-            "last_name": "Doe",
-            "email": "john.doe@example.com",
-            "created_at": "2026-04-03T10:30:00.000000Z"
-        }
-    }
-}
-```
-
----
-
-### 4. Logout
+### 3. Logout
 Invalidate the current access token.
 
 **Endpoint:** `POST /api/v1/auth/logout`
@@ -143,31 +115,6 @@ Authorization: Bearer {access_token}
 
 ---
 
-### 5. Refresh Token
-Get a new access token without re-authentication.
-
-**Endpoint:** `POST /api/v1/auth/refresh`
-
-**Headers:**
-```
-Authorization: Bearer {access_token}
-```
-
-**Success Response (200):**
-```json
-{
-    "success": true,
-    "message": "Token refreshed successfully",
-    "data": {
-        "access_token": "eyJ0eXAiOiJKV1QiLCJhbGc...",
-        "token_type": "bearer",
-        "expires_in": 3600
-    }
-}
-```
-
----
-
 ## Architecture
 
 ### Design Pattern: Service-Repository Pattern
@@ -177,34 +124,61 @@ The implementation follows a clean architecture with separation of concerns:
 1. **Repository Layer** (`app/Repositories/`)
    - `UserRepositoryInterface`: Defines contract for user data operations
    - `UserRepository`: Implements data access logic
+   - `PostRepository`, `CommentRepository`, `PostLikeRepository`, `CommentLikeRepository`, `ImageRepository`: Data access for each domain
 
 2. **Service Layer** (`app/Services/`)
-   - `AuthService`: Contains business logic for authentication operations
+   - `AuthService`: Authentication business logic
+   - `PostService`, `CommentService`, `PostLikeService`, `CommentLikeService`, `ImageService`: Business logic for each domain
 
 3. **Controller Layer** (`app/Http/Controllers/Api/V1/`)
-   - `AuthController`: Handles HTTP requests and responses
+   - `AuthController`, `PostController`, `CommentController`, `FeedController`, `ImageController`
 
 4. **Model** (`app/Models/`)
-   - `User`: Eloquent model implementing JWTSubject interface
+   - `User`, `Post`, `Comment`, `PostLike`, `CommentLike`
 
 ### Directory Structure
 ```
 app/
+├── Enums/
+│   ├── CacheTTL.php
+│   ├── HttpStatus.php
+│   └── ResponseMessage.php
 ├── Http/
 │   └── Controllers/
 │       └── Api/
 │           └── V1/
-│               └── AuthController.php
+│               ├── AuthController.php
+│               ├── PostController.php
+│               ├── CommentController.php
+│               ├── FeedController.php
+│               └── ImageController.php
 ├── Models/
-│   └── User.php
+│   ├── User.php
+│   ├── Post.php
+│   ├── Comment.php
+│   ├── PostLike.php
+│   └── CommentLike.php
 ├── Repositories/
 │   ├── Contracts/
-│   │   └── UserRepositoryInterface.php
-│   └── UserRepository.php
+│   │   ├── UserRepositoryInterface.php
+│   │   ├── PostRepositoryInterface.php
+│   │   ├── CommentRepositoryInterface.php
+│   │   └── ImageRepositoryInterface.php
+│   ├── UserRepository.php
+│   ├── PostRepository.php
+│   ├── CommentRepository.php
+│   ├── PostLikeRepository.php
+│   ├── CommentLikeRepository.php
+│   └── ImageRepository.php
 ├── Services/
-│   └── AuthService.php
+│   ├── AuthService.php
+│   ├── PostService.php
+│   ├── CommentService.php
+│   ├── PostLikeService.php
+│   ├── CommentLikeService.php
+│   └── ImageService.php
 └── Providers/
-    └── AppServiceProvider.php (binds repository interface)
+    └── AppServiceProvider.php
 ```
 
 ---
@@ -236,25 +210,9 @@ curl -X POST http://localhost:8830/api/v1/auth/login \
   }'
 ```
 
-### Get User Profile
-```bash
-curl -X GET http://localhost:8830/api/v1/auth/me \
-  -H "Content-Type: application/json" \
-  -H "Accept: application/json" \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
-```
-
 ### Logout
 ```bash
 curl -X POST http://localhost:8830/api/v1/auth/logout \
-  -H "Content-Type: application/json" \
-  -H "Accept: application/json" \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
-```
-
-### Refresh Token
-```bash
-curl -X POST http://localhost:8830/api/v1/auth/refresh \
   -H "Content-Type: application/json" \
   -H "Accept: application/json" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
@@ -338,44 +296,7 @@ http://localhost:8830/api/v1/images
 
 ---
 
-### 6. Upload Image
-Upload an image to storage. Requires authentication.
-
-**Endpoint:** `POST /api/v1/images`
-
-**Headers:**
-```
-Authorization: Bearer {access_token}
-Content-Type: multipart/form-data
-```
-
-**Form Fields:**
-- `image` (required): Image file — jpg, jpeg, png, gif, webp — max 10MB
-- `folder` (optional): Storage folder path, e.g. `posts` (default: `images`)
-
-**Success Response (201):**
-```json
-{
-    "success": true,
-    "message": "Image uploaded successfully",
-    "data": {
-        "path": "images/filename.jpg",
-        "url": "http://..."
-    }
-}
-```
-
-```bash
-curl -X POST http://localhost:8830/api/v1/images \
-  -H "Accept: application/json" \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
-  -F "image=@/path/to/image.jpg" \
-  -F "folder=posts"
-```
-
----
-
-### 7. Get Image
+### 4. Get Image
 Serve an image by its storage path. Public endpoint.
 
 **Endpoint:** `GET /api/v1/images?path={path}`
@@ -383,40 +304,11 @@ Serve an image by its storage path. Public endpoint.
 **Query Parameters:**
 - `path` (required): Storage path returned from upload, e.g. `images/filename.jpg`
 
-**Success Response (200):** Raw image binary with appropriate `Content-Type` header.
+**Success Response (200):** Raw image binary with appropriate `Content-Type` header and 1-hour cache.
 
 ```bash
 curl -X GET "http://localhost:8830/api/v1/images?path=images/filename.jpg" \
   -H "Accept: application/json"
-```
-
----
-
-### 8. Delete Image
-Delete an image from storage. Requires authentication.
-
-**Endpoint:** `DELETE /api/v1/images?path={path}`
-
-**Headers:**
-```
-Authorization: Bearer {access_token}
-```
-
-**Query Parameters:**
-- `path` (required): Storage path of the image to delete
-
-**Success Response (200):**
-```json
-{
-    "success": true,
-    "message": "Image deleted successfully"
-}
-```
-
-```bash
-curl -X DELETE "http://localhost:8830/api/v1/images?path=images/filename.jpg" \
-  -H "Accept: application/json" \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
 
 ---
@@ -427,7 +319,7 @@ curl -X DELETE "http://localhost:8830/api/v1/images?path=images/filename.jpg" \
 
 ---
 
-### 9. Get Feed
+### 5. Get Feed
 Get a paginated list of public posts. Requires authentication.
 
 **Endpoint:** `GET /api/v1/feed`
@@ -476,64 +368,7 @@ All post endpoints require authentication.
 
 ---
 
-### 10. Get My Posts
-Get a paginated list of the authenticated user's posts.
-
-**Endpoint:** `GET /api/v1/posts/my`
-
-**Headers:**
-```
-Authorization: Bearer {access_token}
-```
-
-**Query Parameters:**
-- `per_page` (optional): Items per page (default: 15)
-- `page` (optional): Page number (default: 1)
-
-```bash
-curl -X GET "http://localhost:8830/api/v1/posts/my?per_page=15&page=1" \
-  -H "Accept: application/json" \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
-```
-
----
-
-### 11. Get Post
-Get a single post by ID. Private posts are only visible to their owner.
-
-**Endpoint:** `GET /api/v1/posts/{post}`
-
-**Headers:**
-```
-Authorization: Bearer {access_token}
-```
-
-**Success Response (200):**
-```json
-{
-    "success": true,
-    "message": "Post fetched successfully",
-    "data": {
-        "id": 1,
-        "user_id": 1,
-        "title": "My Post",
-        "content": "Post content here",
-        "visibility": "public",
-        "image": "images/filename.jpg",
-        "created_at": "2026-04-03T10:30:00.000000Z"
-    }
-}
-```
-
-```bash
-curl -X GET http://localhost:8830/api/v1/posts/1 \
-  -H "Accept: application/json" \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
-```
-
----
-
-### 12. Create Post
+### 6. Create Post
 Create a new post, optionally with an image.
 
 **Endpoint:** `POST /api/v1/posts`
@@ -545,7 +380,6 @@ Content-Type: multipart/form-data
 ```
 
 **Form Fields:**
-- `title` (required): string, max 255 characters
 - `content` (required): string, max 5000 characters
 - `visibility` (optional): `public` or `private` (default: `public`)
 - `image` (optional): Image file — jpeg, png, jpg, gif, webp — max 5MB
@@ -566,7 +400,6 @@ curl -X POST http://localhost:8830/api/v1/posts \
   -H "Accept: application/json" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -d '{
-    "title": "My Post Title",
     "content": "Post content here",
     "visibility": "public"
   }'
@@ -575,15 +408,14 @@ curl -X POST http://localhost:8830/api/v1/posts \
 curl -X POST http://localhost:8830/api/v1/posts \
   -H "Accept: application/json" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
-  -F "title=My Post Title" \
   -F "content=Post content here" \
   -F "visibility=public" \
-  -F "image=@/home/abc/Pictures/Screenshots/Screenshot from 2026-02-19 05-43-18.png"
+  -F "image=@/path/to/image.jpg"
 ```
 
 ---
 
-### 13. Update Post
+### 7. Update Post
 Update an existing post. Only the post owner can update it.
 
 **Endpoint:** `PUT /api/v1/posts/{post}`
@@ -595,7 +427,6 @@ Content-Type: multipart/form-data
 ```
 
 **Form Fields:** (all optional, at least one required)
-- `title`: string, max 255 characters
 - `content`: string, max 5000 characters
 - `visibility`: `public` or `private`
 - `image`: Image file — jpeg, png, jpg, gif, webp — max 5MB
@@ -616,7 +447,6 @@ curl -X PUT http://localhost:8830/api/v1/posts/1 \
   -H "Accept: application/json" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -d '{
-    "title": "Updated Title",
     "content": "Updated content",
     "visibility": "private"
   }'
@@ -624,7 +454,7 @@ curl -X PUT http://localhost:8830/api/v1/posts/1 \
 
 ---
 
-### 14. Delete Post
+### 8. Delete Post
 Delete a post. Only the post owner can delete it.
 
 **Endpoint:** `DELETE /api/v1/posts/{post}`
@@ -650,7 +480,7 @@ curl -X DELETE http://localhost:8830/api/v1/posts/1 \
 
 ---
 
-### 15. Toggle Post Like / Dislike
+### 9. Toggle Post Like / Dislike
 Like, unlike, dislike, or undislike a post.
 
 **Endpoint:** `POST /api/v1/posts/{post}/like`
@@ -701,7 +531,7 @@ curl -X POST http://localhost:8830/api/v1/posts/1/like \
 
 ---
 
-### 16. Get Post Likers
+### 10. Get Post Likers
 Get a paginated list of users who reacted to a post, optionally filtered by reaction type.
 
 **Endpoint:** `GET /api/v1/posts/{post}/likers`
@@ -787,7 +617,7 @@ All comment endpoints require authentication.
 
 ---
 
-### 17. Get Comments
+### 11. Get Comments
 Get top-level comments for a post.
 
 **Endpoint:** `GET /api/v1/posts/{post}/comments`
@@ -805,7 +635,7 @@ curl -X GET http://localhost:8830/api/v1/posts/1/comments \
 
 ---
 
-### 18. Create Comment / Reply
+### 12. Create Comment / Reply
 Add a comment to a post. Pass `parent_id` to create a reply.
 
 **Endpoint:** `POST /api/v1/posts/{post}/comments`
@@ -854,7 +684,7 @@ curl -X POST http://localhost:8830/api/v1/posts/1/comments \
 
 ---
 
-### 19. Update Comment
+### 13. Update Comment
 Update a comment. Only the comment owner can update it.
 
 **Endpoint:** `PUT /api/v1/posts/{post}/comments/{comment}`
@@ -890,7 +720,7 @@ curl -X PUT http://localhost:8830/api/v1/posts/1/comments/5 \
 
 ---
 
-### 20. Delete Comment
+### 14. Delete Comment
 Delete a comment. Only the comment owner can delete it.
 
 **Endpoint:** `DELETE /api/v1/posts/{post}/comments/{comment}`
@@ -916,7 +746,7 @@ curl -X DELETE http://localhost:8830/api/v1/posts/1/comments/5 \
 
 ---
 
-### 21. Get Comment Replies
+### 15. Get Comment Replies
 Get replies for a specific comment.
 
 **Endpoint:** `GET /api/v1/posts/{post}/comments/{comment}/replies`
@@ -934,7 +764,7 @@ curl -X GET http://localhost:8830/api/v1/posts/1/comments/5/replies \
 
 ---
 
-### 22. Toggle Comment Like / Dislike
+### 16. Toggle Comment Like / Dislike
 Like, unlike, dislike, or undislike a comment.
 
 **Endpoint:** `POST /api/v1/posts/{post}/comments/{comment}/like`
@@ -983,7 +813,7 @@ curl -X POST http://localhost:8830/api/v1/posts/1/comments/5/like \
 
 ---
 
-### 23. Get Comment Likers
+### 17. Get Comment Likers
 Get a paginated list of users who reacted to a comment, optionally filtered by reaction type.
 
 **Endpoint:** `GET /api/v1/posts/{post}/comments/{comment}/likers`
