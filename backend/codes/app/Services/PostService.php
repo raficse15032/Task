@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\CacheTTL;
 use App\Models\Post;
+use App\Models\User;
 use App\Repositories\Contracts\PostRepositoryInterface;
 use App\Repositories\Contracts\ImageRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -25,11 +26,13 @@ class PostService
 
     public function getFeed(int $userId, int $perPage = 15, int $page = 1): LengthAwarePaginator
     {
-        $cacheKey = "feed:user:{$userId}:page:{$page}:per_page:{$perPage}";
+        return $this->postRepository->getFeedPaginated($userId, $perPage);
 
-        return Cache::tags(['feed', "feed:user:{$userId}"])->remember($cacheKey, now()->addMinutes(CacheTTL::LIST->value), function () use ($userId, $perPage) {
-            return $this->postRepository->getFeedPaginated($userId, $perPage);
-        });
+        // $cacheKey = "feed:user:{$userId}:page:{$page}:per_page:{$perPage}";
+
+        // return Cache::tags(['feed', "feed:user:{$userId}"])->remember($cacheKey, now()->addMinutes(CacheTTL::LIST->value), function () use ($userId, $perPage) {
+        //     return $this->postRepository->getFeedPaginated($userId, $perPage);
+        // });
     }
 
     public function getPost(int $postId): ?Post
@@ -41,8 +44,11 @@ class PostService
 
     public function createPost(int $userId, array $data, ?UploadedFile $image = null): Post
     {
+        $author = User::select('id', 'first_name', 'last_name')->findOrFail($userId);
+
         $postData = [
             'user_id' => $userId,
+            'user' => ['id' => $author->id, 'first_name' => $author->first_name, 'last_name' => $author->last_name],
             'content' => $data['content'],
             'visibility' => $data['visibility'] ?? 'private',
         ];
@@ -55,7 +61,7 @@ class PostService
 
         $this->clearFeedCache();
 
-        return $post->load('user:id,first_name,last_name');
+        return $post;
     }
 
     public function updatePost(Post $post, array $data, ?UploadedFile $image = null): Post

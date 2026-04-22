@@ -2,7 +2,9 @@
 
 namespace App\Repositories;
 
+use App\Models\Comment;
 use App\Models\Post;
+use App\Models\PostLike;
 use App\Repositories\Contracts\PostRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
@@ -10,9 +12,7 @@ class PostRepository implements PostRepositoryInterface
 {
     public function getFeedPaginated(int $userId, int $perPage = 15): LengthAwarePaginator
     {
-        return Post::with(['user:id,first_name,last_name'])
-            ->withCount('likes', 'dislikes', 'comments')
-            ->where(function ($query) use ($userId) {
+        return Post::where(function ($query) use ($userId) {
                 $query->where('visibility', 'public')
                     ->orWhere('user_id', $userId);
             })
@@ -22,9 +22,7 @@ class PostRepository implements PostRepositoryInterface
 
     public function findById(int $id): ?Post
     {
-        return Post::with(['user:id,first_name,last_name'])
-            ->withCount('likes', 'dislikes', 'comments')
-            ->find($id);
+        return Post::find($id);
     }
 
     public function create(array $data): Post
@@ -35,7 +33,7 @@ class PostRepository implements PostRepositoryInterface
     public function update(Post $post, array $data): Post
     {
         $post->update($data);
-        return $post->fresh(['user:id,first_name,last_name']);
+        return $post->fresh();
     }
 
     public function delete(Post $post): bool
@@ -45,10 +43,27 @@ class PostRepository implements PostRepositoryInterface
 
     public function getUserPosts(int $userId, int $perPage = 15): LengthAwarePaginator
     {
-        return Post::with(['user:id,first_name,last_name'])
-            ->withCount('likes', 'dislikes', 'comments')
-            ->where('user_id', $userId)
+        return Post::where('user_id', $userId)
             ->orderByDesc('created_at')
             ->paginate($perPage);
+    }
+
+    public function syncCommentsCount(int $postId): void
+    {
+        Post::whereKey($postId)->update([
+            'comments_count' => Comment::where('post_id', $postId)->count(),
+        ]);
+    }
+
+    public function syncReactionCounts(int $postId): array
+    {
+        $counts = [
+            'likes_count' => PostLike::where('post_id', $postId)->where('type', 'like')->count(),
+            'dislikes_count' => PostLike::where('post_id', $postId)->where('type', 'dislike')->count(),
+        ];
+
+        Post::whereKey($postId)->update($counts);
+
+        return $counts;
     }
 }

@@ -13,14 +13,25 @@ class Post extends Model
 
     protected $fillable = [
         'user_id',
+        'user',
         'content',
         'image_path',
         'visibility',
     ];
 
-    public function user(): BelongsTo
+    protected function casts(): array
     {
-        return $this->belongsTo(User::class);
+        return [
+            'user' => 'array',
+            'comments_count' => 'integer',
+            'likes_count' => 'integer',
+            'dislikes_count' => 'integer',
+        ];
+    }
+
+    public function author(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id');
     }
 
     public function comments(): HasMany

@@ -13,4 +13,6 @@ interface PostRepositoryInterface
     public function update(Post $post, array $data): Post;
     public function delete(Post $post): bool;
     public function getUserPosts(int $userId, int $perPage = 15): LengthAwarePaginator;
+    public function syncCommentsCount(int $postId): void;
+    public function syncReactionCounts(int $postId): array;
 }

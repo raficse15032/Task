@@ -49,7 +49,7 @@ class CommentController extends Controller
         }
 
         $page = (int) $request->query('page', 1);
-        $perPage = (int) $request->query('per_page', 15);
+        $perPage = min((int) $request->query('per_page', 15), 15);
 
         $comments = $this->commentService->getPostComments($postId, $perPage, $page);
 
@@ -264,7 +264,7 @@ class CommentController extends Controller
         }
 
         $page = (int) $request->query('page', 1);
-        $perPage = (int) $request->query('per_page', 15);
+        $perPage = min((int) $request->query('per_page', 15), 15);
 
         $replies = $this->commentService->getReplies($commentId, $perPage, $page);
 

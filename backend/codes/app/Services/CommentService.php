@@ -5,16 +5,21 @@ namespace App\Services;
 use App\Enums\CacheTTL;
 use App\Models\Comment;
 use App\Repositories\Contracts\CommentRepositoryInterface;
+use App\Repositories\Contracts\PostRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Cache;
 
 class CommentService
 {
     protected CommentRepositoryInterface $commentRepository;
+    protected PostRepositoryInterface $postRepository;
 
-    public function __construct(CommentRepositoryInterface $commentRepository)
-    {
+    public function __construct(
+        CommentRepositoryInterface $commentRepository,
+        PostRepositoryInterface $postRepository
+    ) {
         $this->commentRepository = $commentRepository;
+        $this->postRepository = $postRepository;
     }
 
     public function getPostComments(int $postId, int $perPage = 15, int $page = 1): LengthAwarePaginator
@@ -55,8 +60,10 @@ class CommentService
         }
 
         $comment = $this->commentRepository->create($commentData);
+        $this->postRepository->syncCommentsCount($postId);
 
         $this->clearPostCommentCache($postId);
+        $this->clearPostCache($postId);
         if ($parentId) {
             Cache::tags(["comments:parent:{$parentId}"])->flush();
         }
@@ -86,9 +93,11 @@ class CommentService
         $parentId = $comment->parent_id;
 
         $result = $this->commentRepository->delete($comment);
+        $this->postRepository->syncCommentsCount($postId);
 
         Cache::tags(['comments'])->forget("comment:{$commentId}");
         $this->clearPostCommentCache($postId);
+        $this->clearPostCache($postId);
         if ($parentId) {
             Cache::tags(["comments:parent:{$parentId}"])->flush();
         }
@@ -99,5 +108,11 @@ class CommentService
     protected function clearPostCommentCache(int $postId): void
     {
         Cache::tags(["comments:post:{$postId}"])->flush();
+    }
+
+    protected function clearPostCache(int $postId): void
+    {
+        Cache::tags(['posts'])->forget("post:{$postId}");
+        Cache::tags(['feed'])->flush();
     }
 }

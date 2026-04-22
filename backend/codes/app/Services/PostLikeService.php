@@ -4,25 +4,37 @@ namespace App\Services;
 
 use App\Enums\CacheTTL;
 use App\Repositories\Contracts\PostLikeRepositoryInterface;
+use App\Repositories\Contracts\PostRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Cache;
 
 class PostLikeService
 {
     protected PostLikeRepositoryInterface $postLikeRepository;
+    protected PostRepositoryInterface $postRepository;
 
-    public function __construct(PostLikeRepositoryInterface $postLikeRepository)
-    {
+    public function __construct(
+        PostLikeRepositoryInterface $postLikeRepository,
+        PostRepositoryInterface $postRepository
+    ) {
         $this->postLikeRepository = $postLikeRepository;
+        $this->postRepository = $postRepository;
     }
 
     public function toggleLike(int $postId, int $userId, string $type = 'like'): array
     {
         $result = $this->postLikeRepository->toggle($postId, $userId, $type);
+        $counts = $this->postRepository->syncReactionCounts($postId);
 
         Cache::tags(["post_likes:{$postId}"])->flush();
+        Cache::tags(['posts'])->forget("post:{$postId}");
+        Cache::tags(['feed'])->flush();
 
-        return $result;
+        return [
+            'action' => $result['action'],
+            'likes_count' => $counts['likes_count'],
+            'dislikes_count' => $counts['dislikes_count'],
+        ];
     }
 
     public function getLikers(int $postId, int $perPage = 15, ?string $type = null): LengthAwarePaginator

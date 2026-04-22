@@ -9,7 +9,7 @@ export const loginUser = (data) =>
 export const logoutUser = () =>
   axiosInstance.post('/auth/logout');
 
-export const getFeed = (page = 1, perPage = 15) =>
+export const getFeed = (page = 1, perPage = 10) =>
   axiosInstance.get(`/feed?per_page=${perPage}&page=${page}`);
 
 export const createPost = (formData) =>

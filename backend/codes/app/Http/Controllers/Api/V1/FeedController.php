@@ -24,7 +24,7 @@ class FeedController extends Controller
     public function index(Request $request): JsonResponse
     {
         $userId = Auth::guard('api')->id();
-        $perPage = $request->integer('per_page', 15);
+        $perPage = min($request->integer('per_page', 15), 15);
         $page = $request->integer('page', 1);
 
         $posts = $this->postService->getFeed($userId, $perPage, $page);
